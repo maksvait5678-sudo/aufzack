@@ -77,6 +77,7 @@ header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:s
 .mini .c.row{opacity:.75}
 .mini .c.target{opacity:1;outline:3px solid var(--ink);outline-offset:1px}
 .mini .c.chosen{opacity:1;outline:3px dashed var(--bad);outline-offset:1px}
+.why{font-size:.95rem;color:var(--ink);background:var(--surface2);border-left:3px solid var(--a-der);border-radius:0 10px 10px 0;padding:8px 12px}
 .btn{border:0;border-radius:14px;padding:11px 20px;font-weight:800;cursor:pointer;background:var(--ink);color:var(--bg)}
 .btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:600}
 

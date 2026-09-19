@@ -4,11 +4,17 @@
 export const SEC = 1e3, MIN = 60e3, HOUR = 36e5, DAY = 864e5;
 
 // Рівні 0..8. Інтервали до наступного повторення для кожного рівня.
-export const IV = [20 * SEC, MIN, 10 * MIN, DAY, 3 * DAY, 7 * DAY, 16 * DAY, 35 * DAY, 80 * DAY];
+// Рівні 0 і 1 однакові навмисно: після помилки картка повертається не миттєво.
+export const IV = [MIN, MIN, 10 * MIN, DAY, 3 * DAY, 7 * DAY, 16 * DAY, 35 * DAY, 80 * DAY];
 export const MAXB = IV.length - 1;
 
 // Ліміт «швидкої» відповіді за типом картки, мс.
 export const FAST = { choice: 4000, sentence: 7000, grid: 12000, type: 12000 };
+
+// Помилка швидша за це — радше вгадування: важчий штраф у вазі профілактики.
+export const FAST_ERROR = 1200;
+// Мінімальний розрив між двома правильними відповідями, щоб зняти relearn.
+export const RELEARN_GAP = 10 * MIN;
 
 // Свіжий стан картки, ще не введеної в роботу.
 export function freshCard(now) {
@@ -29,18 +35,38 @@ export function grade(state, { ok, ms, type, mode, now }) {
   if (ok) {
     s.r++;
     if (mode === 'drill' && !wasDue) {
-      // не прострочена картка в профілактиці — розклад не змінюємо
-    } else if (fast) {
-      s.b = Math.min(s.b + 1, MAXB);
-      s.due = now + IV[s.b];
+      // не прострочена картка в профілактиці — розклад і relearn не чіпаємо
     } else {
-      s.b = Math.max(s.b, 1);
-      s.due = now + IV[s.b];
+      let nb = fast ? Math.min(s.b + 1, MAXB) : Math.max(s.b, 1);
+      if (s.relearn) {
+        nb = Math.min(nb, 2); // під час перевчання рівень не піднімається вище 2
+        if (s.relearnAt === undefined) {
+          // перша правильна після помилки: рознести другу спробу щонайменше на RELEARN_GAP
+          s.relearnAt = now;
+          s.b = nb;
+          s.due = now + Math.max(IV[nb], RELEARN_GAP);
+        } else if (now - s.relearnAt >= RELEARN_GAP) {
+          // друга правильна після розриву — перевчання завершено, далі рівень росте як звичайно
+          s.relearn = false;
+          s.relearnAt = undefined;
+          s.b = nb;
+          s.due = now + IV[nb];
+        } else {
+          // правильна раніше ніж через розрив — тримаємо стелю, чекаємо на рознесену спробу
+          s.b = nb;
+          s.due = now + IV[nb];
+        }
+      } else {
+        s.b = nb;
+        s.due = now + IV[nb];
+      }
     }
   } else {
-    s.w++;
+    s.w += (ms < FAST_ERROR ? 2 : 1);
     s.b = 0;
     s.due = now + IV[0];
+    s.relearn = true;
+    s.relearnAt = undefined;
   }
   return { state: s, fast, ok };
 }
@@ -51,7 +77,7 @@ export function grade(state, { ok, ms, type, mode, now }) {
 export function pick(cards, states, { mode, recent, now, rng = Math.random }) {
   const st = id => states[id];
   const intro = cards.filter(c => st(c.id));
-  const recN = intro.length > 4 ? 3 : 1;
+  const recN = intro.length > 4 ? 6 : 1;
   const rec = recent.slice(-recN);
   const nr = c => !rec.includes(c.id);
   const byUrg = (a, b) => (st(a.id).b - st(b.id).b) || (st(a.id).due - st(b.id).due);
@@ -73,11 +99,15 @@ export function pick(cards, states, { mode, recent, now, rng = Math.random }) {
   if (dueNr.length) return { card: dueNr[0] };
 
   const learning = intro.filter(c => st(c.id).b <= 2);
+  // У ліміт «6 у роботі» relearn-картки не рахуємо: інакше вони забивають ліміт і
+  // блокують введення нових, поки перевчання не почне зніматись (а це ≥ 10 хв).
+  const working = learning.filter(c => !st(c.id).relearn);
   const nextNew = cards.find(c => !st(c.id));
-  // 2. Нова картка, якщо в роботі (рівень ≤ 2) менше 6.
-  if (nextNew && learning.length < 6) return { card: nextNew, isNew: true };
-  // 3. Дострокове повторення картки з рівнем ≤ 1, крім останніх показаних.
-  const early = learning.filter(c => st(c.id).b <= 1 && nr(c)).sort((a, b) => st(a.id).due - st(b.id).due);
+  // 2. Нова картка, якщо в роботі менше 6.
+  if (nextNew && working.length < 6) return { card: nextNew, isNew: true };
+  // 3. Дострокове повторення картки з рівнем ≤ 1, крім останніх показаних і крім relearn
+  //    (дострокова поява ламала б 10-хвилинне рознесення relearn — глухий цикл без прогресу).
+  const early = learning.filter(c => st(c.id).b <= 1 && nr(c) && !st(c.id).relearn).sort((a, b) => st(a.id).due - st(b.id).due);
   if (early.length) return { card: early[0] };
   // 4. Нова картка, навіть якщо ліміт у роботі перевищено.
   if (nextNew) return { card: nextNew, isNew: true };

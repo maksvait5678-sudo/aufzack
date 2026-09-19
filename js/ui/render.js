@@ -86,14 +86,15 @@ export function showChoiceFeedback(cardEl, topic, card, chosen, ms, fast, ok, on
   const qline = card.ask ? ` — ${card.ask}` : ` — ${rowOf(topic, card.cell.row).hint}`;
   const sec = (ms / 1000).toFixed(1);
   const rl = rowLabel(topic, card.cell.row), cl = colLabel(topic, card.cell.col);
+  const whyHtml = card.why ? `<div class="why">${card.why}</div>` : '';
 
   if (ok) {
     cardEl.classList.add('flash-ok');
-    fb.innerHTML = `<div class="fb-line"><span class="fb-text ok">Так, ${card.answer} · ${sec} с${fast ? '' : ' — повільно, повторимо скоріше'}</span><span class="hint">${rl} · ${cl}${qline}</span></div>`;
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text ok">Так, ${card.answer} · ${sec} с${fast ? '' : ' — повільно, повторимо скоріше'}</span><span class="hint">${rl} · ${cl}${qline}</span></div>${whyHtml}`;
     fb.classList.add('show');
   } else {
     cardEl.classList.add('flash-bad');
-    fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">Ні: ${rl} · ${cl} → ${card.answer}</span><span class="hint">${qline.slice(3)}</span></div>${miniTable(topic, card.cell, chosen)}<div style="display:flex;justify-content:flex-end"><button class="btn" id="nextBtn">Далі <small style="opacity:.6">(Enter)</small></button></div>`;
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">Ні: ${rl} · ${cl} → ${card.answer}</span><span class="hint">${qline.slice(3)}</span></div>${whyHtml}${miniTable(topic, card.cell, chosen)}<div style="display:flex;justify-content:flex-end"><button class="btn" id="nextBtn">Далі <small style="opacity:.6">(Enter)</small></button></div>`;
     fb.classList.add('show');
     const nb = document.getElementById('nextBtn');
     nb.addEventListener('click', onNext);
@@ -119,10 +120,11 @@ export function showGridFeedback(cardEl, topic, card, sel, ms, fast, ok, onNext)
 
   const fb = document.getElementById('fb');
   const where = card.cells.map(k => { const [cs, g] = k.split('-'); return `${rowLabel(topic, cs)} ${colLabel(topic, g)}`; }).join(', ');
+  const whyHtml = card.why ? `<div class="why">${card.why}</div>` : '';
   cardEl.classList.add(ok ? 'flash-ok' : 'flash-bad');
-  fb.innerHTML = ok
+  fb.innerHTML = (ok
     ? `<span class="fb-text ok">Точно · ${(ms / 1000).toFixed(1)} с${fast ? '' : ' — повільно'}</span>`
-    : `<span class="fb-text bad">${card.answer}: ${where}</span><span class="hint">Пунктир — пропущені, червоне — зайві.</span>`;
+    : `<span class="fb-text bad">${card.answer}: ${where}</span><span class="hint">Пунктир — пропущені, червоне — зайві.</span>`) + whyHtml;
   fb.classList.add('show');
   if (!ok) nb.focus();
 }
