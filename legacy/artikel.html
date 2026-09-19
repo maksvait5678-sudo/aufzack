@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artikel — der, die, das на зубок</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E7ECF8; --surface:#FFFFFF; --surface2:#F3F6FD; --ink:#0F1C4D; --muted:#5A6690; --line:#CFD7EC;
+  --good:#17985A; --bad:#DC3535;
+  --a-der:#16C1E3; --a-die:#BDF45F; --a-das:#D3D6DE; --a-des:#FF6BCB; --a-dem:#FF6040; --a-den:#FFB957;
+  --pill-ink:#13246A; --prog:#B6C2E6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A1236; --surface:#131D4E; --surface2:#1A2660; --ink:#EEF2FF; --muted:#9DA8D8; --line:#2A3775;
+    --good:#3DDC8B; --bad:#FF6B6B; --prog:#3A4B9C;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A1236; --surface:#131D4E; --surface2:#1A2660; --ink:#EEF2FF; --muted:#9DA8D8; --line:#2A3775;
+  --good:#3DDC8B; --bad:#FF6B6B; --prog:#3A4B9C;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45;min-height:100vh}
+button{font:inherit;color:inherit}
+button:focus-visible{outline:3px solid var(--a-der);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.brand{font-weight:800;font-size:1.6rem;letter-spacing:-.02em;display:flex;gap:6px;align-items:baseline}
+.brand span{display:inline-block;padding:0 .35em;border-radius:.5em;color:var(--pill-ink);font-size:1.05rem}
+.modes{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.modes button{border:0;background:transparent;padding:7px 14px;border-radius:999px;cursor:pointer;font-weight:600;color:var(--muted)}
+.modes button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 12px}
+.stat b{display:block;font-size:1.35rem;font-weight:800;line-height:1.1}
+.stat small{color:var(--muted);font-size:.8rem}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:26px;padding:22px 20px 20px;min-height:300px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.card.flash-ok{box-shadow:inset 0 0 0 3px var(--good)}
+.card.flash-bad{box-shadow:inset 0 0 0 3px var(--bad)}
+.kind{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:.9rem;min-height:24px}
+.badge{font-size:.78rem;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--surface2);border:1px solid var(--line)}
+.badge.new{background:var(--a-die);color:var(--pill-ink);border-color:transparent}
+.prompt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:14px 0}
+.big{font-size:clamp(2.4rem,9vw,3.6rem);font-weight:800;letter-spacing:-.03em;line-height:1}
+.gchip{font-size:1.05rem;font-weight:600;padding:5px 16px;border-radius:999px;border:2px solid var(--ink)}
+.sentence{font-size:clamp(1.35rem,5vw,1.9rem);font-weight:600;line-height:1.35;max-width:32ch}
+.blank{display:inline-block;min-width:2.6em;border-bottom:3px solid var(--ink);margin:0 .1em;color:var(--pill-ink);border-radius:.3em .3em 0 0;padding:0 .2em}
+.hint{color:var(--muted);font-size:.95rem}
+
+.answers{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:6px}
+.pill{border:0;border-radius:18px;padding:14px 4px;font-size:1.3rem;font-weight:800;color:var(--pill-ink);cursor:pointer;position:relative;transition:transform .08s}
+.pill:active{transform:scale(.96)}
+.pill kbd{position:absolute;top:4px;left:8px;font-family:inherit;font-size:.65rem;font-weight:600;opacity:.55}
+.pill.dim{opacity:.35}
+.pill.right{outline:3px solid var(--good);outline-offset:2px;opacity:1}
+.pill.wrong{outline:3px solid var(--bad);outline-offset:2px;opacity:1}
+.pill:disabled{cursor:default}
+
+.grid{display:grid;grid-template-columns:auto repeat(4,1fr);gap:6px;width:100%;max-width:520px;margin:0 auto}
+.grid .h{font-size:.78rem;color:var(--muted);text-align:center;align-self:center;font-weight:600}
+.grid .rh{text-align:right;padding-right:4px}
+.cell{border:2px solid var(--line);background:var(--surface2);border-radius:12px;min-height:44px;cursor:pointer;font-weight:800;font-size:1.05rem;color:var(--pill-ink)}
+.cell[aria-pressed="true"]{background:var(--sel,var(--a-der));border-color:transparent}
+.cell.ok{outline:3px solid var(--good);outline-offset:1px}
+.cell.miss{border:3px dashed var(--good)}
+.cell.bad{outline:3px solid var(--bad);outline-offset:1px}
+.cell.hl{outline:3px solid var(--ink);outline-offset:2px;transform:scale(1.04)}
+
+.feedback{margin-top:14px;display:none;gap:12px;flex-direction:column}
+.feedback.show{display:flex}
+.fb-line{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.fb-text{font-size:1.1rem;font-weight:600}
+.fb-text.ok{color:var(--good)} .fb-text.bad{color:var(--bad)}
+.mini{display:grid;grid-template-columns:auto repeat(4,1fr);gap:4px;font-size:.85rem}
+.mini div{border-radius:8px;padding:4px 2px;text-align:center;font-weight:800;color:var(--pill-ink)}
+.mini .h{color:var(--muted);font-weight:600;font-size:.72rem;background:none}
+.mini .c{opacity:.4}
+.mini .c.row{opacity:.75}
+.mini .c.target{opacity:1;outline:3px solid var(--ink);outline-offset:1px}
+.mini .c.chosen{opacity:1;outline:3px dashed var(--bad);outline-offset:1px}
+.btn{border:0;border-radius:14px;padding:11px 20px;font-weight:800;cursor:pointer;background:var(--ink);color:var(--bg)}
+.btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:600}
+
+.done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px}
+.done p{margin:0;color:var(--muted);max-width:40ch}
+
+section.map{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:16px}
+.map-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+.map-top h2{font-size:1.05rem;margin:0}
+.heat{display:grid;grid-template-columns:auto repeat(4,1fr);gap:6px}
+.heat .h{font-size:.75rem;color:var(--muted);text-align:center;align-self:center;font-weight:600}
+.heat .rh{text-align:right;padding-right:4px;line-height:1.15}
+.heat .rh em{font-style:normal;display:block;font-size:.68rem;opacity:.8}
+.hc{border-radius:12px;min-height:48px;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--pill-ink);position:relative;overflow:hidden;background:var(--surface2);border:1px solid var(--line)}
+.hc .fill{position:absolute;inset:0;transform-origin:left;opacity:.95}
+.hc span{position:relative;font-size:.95rem}
+.hc span.pct{font-size:.78rem;color:var(--ink)}
+footer{display:flex;justify-content:space-between;align-items:center;margin-top:14px;color:var(--muted);font-size:.8rem;gap:10px;flex-wrap:wrap}
+.linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0}
+
+@media (max-width:560px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .answers{grid-template-columns:repeat(3,1fr)}
+  .pill{padding:16px 4px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Artikel <span style="background:var(--a-der)">der</span><span style="background:var(--a-die)">die</span><span style="background:var(--a-das)">das</span></div>
+    <div class="modes" role="group" aria-label="Режим">
+      <button id="mLearn" aria-pressed="true">Навчання</button>
+      <button id="mDrill" aria-pressed="false">Профілактика</button>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><b id="sDue">0</b><small>на черзі</small></div>
+    <div class="stat"><b id="sLearned">0/0</b><small>вивчено</small></div>
+    <div class="stat"><b id="sStreak">0</b><small>серія (рекорд <span id="sBest">0</span>)</small></div>
+    <div class="stat"><b id="sToday">0</b><small>відповідей сьогодні</small></div>
+  </div>
+
+  <div class="card" id="card" aria-live="polite"></div>
+
+  <section class="map">
+    <div class="map-top">
+      <h2>Карта засвоєння</h2>
+      <button class="btn ghost" id="peek">Підглянути таблицю</button>
+    </div>
+    <div class="heat" id="heat"></div>
+  </section>
+
+  <footer>
+    <span id="sync">Прогрес зберігається в цьому браузері</span>
+    <button class="linkbtn" id="reset">Скинути прогрес</button>
+  </footer>
+</div>
+
+<script>
+(function(){
+const CASES=[{k:'nom',name:'Nominativ',q:'Wer? Was?'},{k:'gen',name:'Genitiv',q:'Wessen?'},{k:'dat',name:'Dativ',q:'Wem? Wo?'},{k:'akk',name:'Akkusativ',q:'Wen? Was? Wohin?'}];
+const GENDERS=[{k:'m',name:'maskulin'},{k:'f',name:'feminin'},{k:'n',name:'neutrum'},{k:'p',name:'plural'}];
+const T={nom:{m:'der',f:'die',n:'das',p:'die'},gen:{m:'des',f:'der',n:'des',p:'der'},dat:{m:'dem',f:'der',n:'dem',p:'den'},akk:{m:'den',f:'die',n:'das',p:'die'}};
+const ARTS=['der','die','das','des','dem','den'];
+const CN=Object.fromEntries(CASES.map(c=>[c.k,c.name]));
+const GN=Object.fromEntries(GENDERS.map(g=>[g.k,g.name]));
+const QW={wer:['Wer?','nom'],wessen:['Wessen?','gen'],wem:['Wem?','dat'],wo:['Wo?','dat'],wen:['Wen?','akk'],wohin:['Wohin?','akk']};
+const col=a=>`var(--a-${a})`;
+
+const SENT={
+ nom:[['m','___ Hund bellt.'],['f','___ Lampe ist neu.'],['n','___ Fenster ist offen.'],['p','___ Kinder spielen.']],
+ akk:[['m','Ich sehe ___ Hund.'],['f','Ich kaufe ___ Lampe.'],['n','Er öffnet ___ Fenster.'],['p','Wir besuchen ___ Kinder.'],['m','Ich lege das Buch auf ___ Tisch.','Wohin?'],['f','Sie hängt das Bild an ___ Wand.','Wohin?']],
+ dat:[['m','Ich helfe ___ Mann.'],['f','Er gibt ___ Frau eine Blume.'],['n','Wir spielen mit ___ Kind.'],['p','Ich danke ___ Kindern.'],['m','Das Buch liegt auf ___ Tisch.','Wo?'],['f','Das Bild hängt an ___ Wand.','Wo?']],
+ gen:[['m','Das Auto ___ Vaters ist rot.'],['f','Die Tasche ___ Mutter ist schwer.'],['n','Die Farbe ___ Hauses ist weiß.'],['p','Die Lehrerin ___ Kinder ist nett.']]
+};
+
+// Build deck in learning order: row by row
+const CARDS=[];
+const fwd=c=>GENDERS.forEach(g=>CARDS.push({id:`f-${c}-${g.k}`,type:'f',c,g:g.k,ans:T[c][g.k]}));
+const qst=w=>GENDERS.forEach(g=>CARDS.push({id:`q-${w}-${g.k}`,type:'q',c:QW[w][1],g:g.k,w:QW[w][0],ans:T[QW[w][1]][g.k]}));
+const snt=c=>SENT[c].forEach((s,i)=>CARDS.push({id:`s-${c}-${i}`,type:'s',c,g:s[0],text:s[1],w:s[2],ans:T[c][s[0]]}));
+const rev=a=>{const cells=[];CASES.forEach(c=>GENDERS.forEach(g=>{if(T[c.k][g.k]===a)cells.push(c.k+'-'+g.k)}));CARDS.push({id:`r-${a}`,type:'r',a,cells})};
+fwd('nom');qst('wer');snt('nom');
+fwd('akk');qst('wen');qst('wohin');snt('akk');rev('das');rev('die');
+fwd('dat');qst('wem');qst('wo');snt('dat');rev('dem');rev('den');
+fwd('gen');qst('wessen');snt('gen');rev('des');rev('der');
+const BYID=Object.fromEntries(CARDS.map(c=>[c.id,c]));
+
+const SEC=1e3,MIN=60e3,HOUR=36e5,DAY=864e5;
+const IV=[20*SEC,MIN,10*MIN,DAY,3*DAY,7*DAY,16*DAY,35*DAY,80*DAY];
+const MAXB=IV.length-1;
+const FAST={f:4000,q:4000,s:7000,r:12000};
+const LS='artikel-srs-v1';
+
+const fresh=()=>({v:1,cards:{},streak:0,best:0,today:{d:'',n:0},updatedAt:0});
+let S=loadLocal()||fresh();
+let mode='learn', cur=null, shownAt=0, answered=false, recent=[], peek=false, autoT=null, sel=new Set();
+
+function loadLocal(){try{const r=JSON.parse(localStorage.getItem(LS));return r&&r.v===1?r:null}catch(e){return null}}
+function save(){S.updatedAt=Date.now();try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}scheduleRemote()}
+
+// ---- optional cloud sync (private per viewer) ----
+let db=null,uid=null,rt=null,writing=false,pending=false;
+const syncEl=document.getElementById('sync');
+async function initSync(){
+  if(!window.claude||typeof window.claude.use!=='function')return;
+  try{
+    const [d,u]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
+    if(!d||!u)return;
+    uid=await u.id(); if(!uid)return;
+    db=d;
+    const snap=await db.doc(`data/users/${uid}/progress`).get();
+    if(snap.exists){
+      const r=JSON.parse(JSON.stringify(snap.data()));
+      if(r&&r.v===1&&(r.updatedAt||0)>(S.updatedAt||0)){S=r;try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){};refresh();if(!cur||answered)next()}
+      else if((S.updatedAt||0)>(r.updatedAt||0))scheduleRemote();
+    }else if(S.updatedAt)scheduleRemote();
+    syncEl.textContent='Прогрес синхронізується з акаунтом';
+  }catch(e){db=null}
+}
+function scheduleRemote(){if(!db)return;clearTimeout(rt);rt=setTimeout(flush,1500)}
+async function flush(){
+  if(!db)return;
+  if(writing){pending=true;return}
+  writing=true;
+  try{await db.doc(`data/users/${uid}/progress`).set(JSON.parse(JSON.stringify(S)));syncEl.textContent='Прогрес синхронізується з акаунтом'}
+  catch(e){syncEl.textContent='Не вдалося синхронізувати — прогрес є в браузері'}
+  writing=false;
+  if(pending){pending=false;flush()}
+}
+
+// ---- scheduling ----
+const st=id=>S.cards[id];
+function pick(){
+  const now=Date.now();
+  const intro=CARDS.filter(c=>st(c.id));
+  const recN=intro.length>4?3:1;
+  const rec=recent.slice(-recN);
+  const nr=c=>!rec.includes(c.id);
+  const byUrg=(a,b)=>(st(a.id).b-st(b.id).b)||(st(a.id).due-st(b.id).due);
+
+  if(mode==='drill'){
+    const pool=intro.filter(nr);
+    if(!pool.length)return intro[0]?{card:intro[0]}:null;
+    let tot=0;const w=pool.map(c=>{const s=st(c.id);const x=1+(6-Math.min(s.b,5))*2+Math.min(s.w||0,5);tot+=x;return x});
+    let r=Math.random()*tot;for(let i=0;i<pool.length;i++){r-=w[i];if(r<=0)return{card:pool[i]}}
+    return{card:pool[pool.length-1]};
+  }
+  const due=intro.filter(c=>st(c.id).due<=now);
+  const dueNr=due.filter(nr).sort(byUrg);
+  if(dueNr.length)return{card:dueNr[0]};
+  const learning=intro.filter(c=>st(c.id).b<=2);
+  const nextNew=CARDS.find(c=>!st(c.id));
+  if(nextNew&&learning.length<6)return{card:nextNew,isNew:true};
+  const early=learning.filter(c=>st(c.id).b<=1&&nr(c)).sort((a,b)=>st(a.id).due-st(b.id).due);
+  if(early.length)return{card:early[0]};
+  if(nextNew)return{card:nextNew,isNew:true};
+  const b2=learning.filter(nr).sort((a,b)=>st(a.id).due-st(b.id).due);
+  if(b2.length)return{card:b2[0]};
+  if(due.length)return{card:due.sort(byUrg)[0]};
+  return null;
+}
+
+function grade(card,ok,ms){
+  const now=Date.now();
+  let s=st(card.id);
+  if(!s){s={b:0,due:now,r:0,w:0};S.cards[card.id]=s}
+  const fast=ms<=FAST[card.type];
+  const wasDue=s.due<=now;
+  if(ok){
+    s.r++;
+    if(mode==='drill'&&!wasDue){/* keep schedule */}
+    else if(fast){s.b=Math.min(s.b+1,MAXB);s.due=now+IV[s.b]}
+    else{s.b=Math.max(s.b,1);s.due=now+IV[s.b]}
+    S.streak++;S.best=Math.max(S.best,S.streak);
+  }else{
+    s.w++;s.b=0;s.due=now+IV[0];S.streak=0;
+  }
+  const d=new Date().toDateString();
+  if(S.today.d!==d)S.today={d,n:0};
+  S.today.n++;
+  recent.push(card.id);if(recent.length>6)recent.shift();
+  save();refresh();
+  return fast;
+}
+
+// ---- rendering ----
+const cardEl=document.getElementById('card');
+function next(){
+  clearTimeout(autoT);
+  const p=pick();
+  answered=false;sel=new Set();
+  cardEl.classList.remove('flash-ok','flash-bad');
+  if(!p){cur=null;renderDone();return}
+  cur=p;shownAt=Date.now();
+  renderCard();
+}
+
+function genderChip(g){return `<span class="gchip">${GN[g]}</span>`}
+function kindLabel(c){return {f:'Відмінок + рід',q:'Питання + рід',s:'Встав артикль',r:'Де стоїть це слово?'}[c.type]}
+
+function renderCard(){
+  const c=cur.card;const s=st(c.id);
+  let badge=cur.isNew?'<span class="badge new">нова</span>':(s?`<span class="badge">рівень ${s.b}</span>`:'');
+  let body='';
+  if(c.type==='f')body=`<div class="big">${CN[c.c]}</div>${genderChip(c.g)}`;
+  if(c.type==='q')body=`<div class="big">${c.w}</div>${genderChip(c.g)}`;
+  if(c.type==='s')body=`<div class="sentence">${c.text.replace('___','<span class="blank" id="blank">&nbsp;</span>')}</div>${genderChip(c.g)}`;
+  if(c.type==='r')body=`<div class="big" style="background:${col(c.a)};color:var(--pill-ink);padding:6px 26px;border-radius:22px">${c.a}</div><div class="hint">Познач усі клітинки таблиці з цим артиклем</div>${revGrid(c)}`;
+  let ans='';
+  if(c.type==='r')ans=`<div style="display:flex;justify-content:center;margin-top:10px"><button class="btn" id="check">Перевірити <small style="opacity:.6">(Enter)</small></button></div>`;
+  else ans=`<div class="answers">${ARTS.map((a,i)=>`<button class="pill" data-a="${a}" style="background:${col(a)}"><kbd>${i+1}</kbd>${a}</button>`).join('')}</div>`;
+  cardEl.innerHTML=`<div class="kind"><span>${kindLabel(c)}</span>${badge}</div><div class="prompt">${body}</div>${ans}<div class="feedback" id="fb"></div>`;
+  cardEl.querySelectorAll('.pill').forEach(b=>b.addEventListener('click',()=>choose(b.dataset.a)));
+  if(c.type==='r'){
+    cardEl.querySelectorAll('.cell').forEach(b=>b.addEventListener('click',()=>{
+      if(answered)return;const k=b.dataset.k;
+      if(sel.has(k)){sel.delete(k);b.setAttribute('aria-pressed','false')}else{sel.add(k);b.setAttribute('aria-pressed','true')}
+    }));
+    document.getElementById('check').addEventListener('click',checkRev);
+  }
+}
+
+function revGrid(c){
+  let h=`<div class="grid" style="--sel:${col(c.a)}"><div></div>${GENDERS.map(g=>`<div class="h">${g.name}</div>`).join('')}`;
+  CASES.forEach(cs=>{h+=`<div class="h rh">${cs.name}</div>`;GENDERS.forEach(g=>{h+=`<button class="cell" aria-pressed="false" data-k="${cs.k}-${g.k}" aria-label="${cs.name} ${g.name}"></button>`})});
+  return h+'</div>';
+}
+
+function miniTable(target,chosen){
+  let h=`<div class="mini"><div class="h"></div>${GENDERS.map(g=>`<div class="h">${g.name}</div>`).join('')}`;
+  CASES.forEach(cs=>{h+=`<div class="h" style="text-align:right">${cs.name}</div>`;GENDERS.forEach(g=>{
+    const a=T[cs.k][g.k];let cls='c';
+    if(cs.k===target.c)cls+=' row';
+    if(cs.k===target.c&&g.k===target.g)cls+=' target';
+    else if(chosen&&cs.k===target.c&&a===chosen)cls+=' chosen';
+    h+=`<div class="${cls}" style="background:${col(a)}">${a}</div>`})});
+  return h+'</div>';
+}
+
+function choose(a){
+  if(answered||!cur)return;
+  answered=true;
+  const c=cur.card;const ms=Date.now()-shownAt;const ok=a===c.ans;
+  const fast=grade(c,ok,ms);
+  cardEl.querySelectorAll('.pill').forEach(b=>{b.disabled=true;const x=b.dataset.a;if(x===c.ans)b.classList.add('right');else if(x===a)b.classList.add('wrong');else b.classList.add('dim')});
+  const blank=document.getElementById('blank');
+  if(blank){blank.textContent=c.ans;blank.style.background=col(c.ans)}
+  const fb=document.getElementById('fb');
+  const qline=c.w?` — ${c.w}`:` — ${CASES.find(x=>x.k===c.c).q}`;
+  const sec=(ms/1000).toFixed(1);
+  if(ok){
+    cardEl.classList.add('flash-ok');
+    fb.innerHTML=`<div class="fb-line"><span class="fb-text ok">Так, ${c.ans} · ${sec} с${fast?'':' — повільно, повторимо скоріше'}</span><span class="hint">${CN[c.c]} · ${GN[c.g]}${qline}</span></div>`;
+    fb.classList.add('show');
+    autoT=setTimeout(next,fast?750:1500);
+  }else{
+    cardEl.classList.add('flash-bad');
+    fb.innerHTML=`<div class="fb-line"><span class="fb-text bad">Ні: ${CN[c.c]} · ${GN[c.g]} → ${c.ans}</span><span class="hint">${qline.slice(3)}</span></div>${miniTable(c,a)}<div style="display:flex;justify-content:flex-end"><button class="btn" id="nextBtn">Далі <small style="opacity:.6">(Enter)</small></button></div>`;
+    fb.classList.add('show');
+    document.getElementById('nextBtn').addEventListener('click',next);
+    document.getElementById('nextBtn').focus();
+  }
+}
+
+function checkRev(){
+  if(answered||!cur)return;
+  answered=true;
+  const c=cur.card;const ms=Date.now()-shownAt;
+  const want=new Set(c.cells);
+  const ok=want.size===sel.size&&[...want].every(k=>sel.has(k));
+  const fast=grade(c,ok,ms);
+  cardEl.querySelectorAll('.cell').forEach(b=>{const k=b.dataset.k;b.disabled=true;
+    if(want.has(k)&&sel.has(k))b.classList.add('ok');
+    else if(want.has(k)){b.classList.add('miss');b.textContent=c.a}
+    else if(sel.has(k))b.classList.add('bad');
+  });
+  const chk=document.getElementById('check');chk.textContent='Далі (Enter)';chk.replaceWith(chk.cloneNode(true));
+  const nb=document.getElementById('check');nb.addEventListener('click',next);
+  const fb=document.getElementById('fb');
+  const where=c.cells.map(k=>{const[cs,g]=k.split('-');return `${CN[cs]} ${GN[g]}`}).join(', ');
+  cardEl.classList.add(ok?'flash-ok':'flash-bad');
+  fb.innerHTML=ok?`<span class="fb-text ok">Точно · ${(ms/1000).toFixed(1)} с${fast?'':' — повільно'}</span>`:`<span class="fb-text bad">${c.a}: ${where}</span><span class="hint">Пунктир — пропущені, червоне — зайві.</span>`;
+  fb.classList.add('show');
+  if(ok)autoT=setTimeout(next,fast?900:1600);else nb.focus();
+}
+
+function fmt(ms){
+  if(ms<MIN)return `${Math.max(1,Math.round(ms/SEC))} с`;
+  if(ms<HOUR)return `${Math.round(ms/MIN)} хв`;
+  if(ms<DAY)return `${Math.round(ms/HOUR)} год`;
+  return `${Math.round(ms/DAY)} дн`;
+}
+function renderDone(){
+  const ds=Object.values(S.cards).map(s=>s.due);
+  const nxt=ds.length?Math.min(...ds)-Date.now():0;
+  const intro=Object.keys(S.cards).length;
+  cardEl.innerHTML=`<div class="done"><div class="big">Готово</div><p>${intro?`Усе, що мало бути повторено, повторено. Наступне повторення — через ${fmt(Math.max(nxt,0))}. Між сесіями грай у профілактику: помилки там повертають картку в чергу.`:'Натисни «Навчання», щоб почати.'}</p><button class="btn" id="goDrill">Профілактика</button></div>`;
+  document.getElementById('goDrill').addEventListener('click',()=>setMode('drill'));
+}
+
+function refresh(){
+  const now=Date.now();
+  const intro=CARDS.filter(c=>st(c.id));
+  document.getElementById('sDue').textContent=intro.filter(c=>st(c.id).due<=now).length+CARDS.filter(c=>!st(c.id)).length;
+  document.getElementById('sLearned').textContent=`${intro.filter(c=>st(c.id).b>=3).length}/${CARDS.length}`;
+  document.getElementById('sStreak').textContent=S.streak;
+  document.getElementById('sBest').textContent=S.best;
+  const d=new Date().toDateString();
+  document.getElementById('sToday').textContent=S.today.d===d?S.today.n:0;
+  renderHeat();
+}
+
+function renderHeat(){
+  let h=`<div></div>${GENDERS.map(g=>`<div class="h">${g.name}</div>`).join('')}`;
+  CASES.forEach(cs=>{
+    h+=`<div class="h rh">${cs.name}<em>${cs.q}</em></div>`;
+    GENDERS.forEach(g=>{
+      const related=CARDS.filter(c=>c.type!=='r'&&c.c===cs.k&&c.g===g.k);
+      const v=related.reduce((acc,c)=>acc+(st(c.id)?Math.min(st(c.id).b,4)/4:0),0)/related.length;
+      const a=T[cs.k][g.k];
+      const label=peek?`<span>${a}</span>`:`<span class="pct">${Math.round(v*100)}%</span>`;
+      h+=`<div class="hc" title="${cs.name} ${g.name}"><div class="fill" style="background:${peek?col(a):'var(--prog)'};transform:scaleX(${peek?1:v})"></div>${label}</div>`;
+    });
+  });
+  document.getElementById('heat').innerHTML=h;
+}
+
+function setMode(m){
+  mode=m;
+  document.getElementById('mLearn').setAttribute('aria-pressed',m==='learn');
+  document.getElementById('mDrill').setAttribute('aria-pressed',m==='drill');
+  if(m==='drill'&&!Object.keys(S.cards).length){mode='learn';document.getElementById('mLearn').setAttribute('aria-pressed','true');document.getElementById('mDrill').setAttribute('aria-pressed','false')}
+  next();
+}
+document.getElementById('mLearn').addEventListener('click',()=>setMode('learn'));
+document.getElementById('mDrill').addEventListener('click',()=>setMode('drill'));
+document.getElementById('peek').addEventListener('click',e=>{peek=!peek;e.target.textContent=peek?'Сховати таблицю':'Підглянути таблицю';renderHeat()});
+document.getElementById('reset').addEventListener('click',()=>{if(confirm('Скинути весь прогрес?')){S=fresh();recent=[];save();refresh();setMode('learn')}});
+
+document.addEventListener('keydown',e=>{
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  if(!cur){return}
+  const c=cur.card;
+  if(!answered&&c.type!=='r'&&e.key>='1'&&e.key<='6'){e.preventDefault();choose(ARTS[+e.key-1]);return}
+  if(e.key==='Enter'){
+    if(document.activeElement&&document.activeElement.tagName==='BUTTON'&&!answered&&c.type==='r'&&document.activeElement.classList.contains('cell'))return;
+    e.preventDefault();
+    if(answered)next();else if(c.type==='r')checkRev();
+  }
+});
+
+setInterval(()=>{refresh();if(!cur&&mode==='learn'&&pick())next()},15000);
+refresh();next();initSync();
+})();
+</script>
+</body>
+</html>
