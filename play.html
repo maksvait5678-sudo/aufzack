@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deutsch Drill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"></div>
+    <div class="modes" role="group" aria-label="Режим">
+      <button id="mLearn" aria-pressed="true">Навчання</button>
+      <button id="mDrill" aria-pressed="false">Профілактика</button>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><b id="sDue">0</b><small>на черзі</small></div>
+    <div class="stat"><b id="sLearned">0/0</b><small>вивчено</small></div>
+    <div class="stat"><b id="sStreak">0</b><small>серія (рекорд <span id="sBest">0</span>)</small></div>
+    <div class="stat"><b id="sToday">0</b><small>відповідей сьогодні</small></div>
+  </div>
+
+  <div class="card" id="card" aria-live="polite"></div>
+
+  <section class="map">
+    <div class="map-top">
+      <h2>Карта засвоєння</h2>
+      <button class="btn ghost" id="peek">Підглянути таблицю</button>
+    </div>
+    <div class="heat" id="heat"></div>
+  </section>
+
+  <footer>
+    <span id="sync">Прогрес зберігається в цьому браузері</span>
+    <span>
+      <button class="linkbtn" id="exportBtn">Експортувати код</button>
+      ·
+      <button class="linkbtn" id="importBtn">Імпортувати код</button>
+      ·
+      <button class="linkbtn" id="reset">Скинути прогрес</button>
+    </span>
+  </footer>
+  <div class="io-panel" id="ioPanel"></div>
+
+  <p style="margin-top:14px"><a class="linkbtn" href="index.html">← До вибору теми</a></p>
+</div>
+
+<script type="module">
+import { getTopic } from './js/topics/index.js';
+import { createSession } from './js/engine/session.js';
+import * as store from './js/engine/store.js';
+import { renderCard, showChoiceFeedback, showGridFeedback, renderDone } from './js/ui/render.js';
+import { renderHeat } from './js/ui/heat.js';
+import { renderStats } from './js/ui/stats.js';
+import { bindKeyboard } from './js/ui/keyboard.js';
+
+const params = new URLSearchParams(location.search);
+const topic = getTopic(params.get('topic') || 'artikel');
+if (!topic) {
+  document.querySelector('.wrap').innerHTML = '<p>Тему не знайдено.</p><p><a href="index.html">До вибору теми</a></p>';
+  throw new Error('topic not found');
+}
+
+const session = createSession(topic);
+
+// Брендинг з даних теми.
+document.querySelector('.brand').innerHTML =
+  `${topic.brand.word} ${topic.brand.chips.map(a => `<span style="background:${topic.colors[a]}">${a}</span>`).join('')}`;
+document.title = `${topic.brand.word} — ${topic.subtitle}`;
+
+const cardEl = document.getElementById('card');
+const heatEl = document.getElementById('heat');
+const statEls = {
+  due: document.getElementById('sDue'),
+  learned: document.getElementById('sLearned'),
+  streak: document.getElementById('sStreak'),
+  best: document.getElementById('sBest'),
+  today: document.getElementById('sToday')
+};
+
+let peek = false, autoT = null, sel = new Set();
+
+function refresh() {
+  renderStats(statEls, topic, session.data);
+  renderHeat(heatEl, topic, session.data.cards, peek);
+}
+
+function advance() {
+  clearTimeout(autoT);
+  sel = new Set();
+  cardEl.classList.remove('flash-ok', 'flash-bad');
+  const cur = session.next();
+  if (!cur) { renderDone(cardEl, session.data, topic.cards.length, () => setMode('drill')); return; }
+  renderCard(cardEl, topic, cur, session.stateOf(cur.card.id), {
+    onChoose: choose,
+    onToggleCell: (k, el) => {
+      if (session.answered) return;
+      if (sel.has(k)) { sel.delete(k); el.setAttribute('aria-pressed', 'false'); }
+      else { sel.add(k); el.setAttribute('aria-pressed', 'true'); }
+    },
+    onCheck: checkRev
+  });
+}
+
+function choose(a) {
+  const cur = session.cur;
+  if (session.answered || !cur) return;
+  const c = cur.card;
+  const ms = Date.now() - session.shownAt;
+  const ok = a === c.answer;
+  const fast = session.answer(c, ok, ms);
+  refresh();
+  showChoiceFeedback(cardEl, topic, c, a, ms, fast, ok, advance);
+  if (ok) autoT = setTimeout(advance, fast ? 750 : 1500);
+}
+
+function checkRev() {
+  const cur = session.cur;
+  if (session.answered || !cur) return;
+  const c = cur.card;
+  const ms = Date.now() - session.shownAt;
+  const want = new Set(c.cells);
+  const ok = want.size === sel.size && [...want].every(k => sel.has(k));
+  const fast = session.answer(c, ok, ms);
+  refresh();
+  showGridFeedback(cardEl, topic, c, sel, ms, fast, ok, advance);
+  if (ok) autoT = setTimeout(advance, fast ? 900 : 1600);
+}
+
+function setMode(m) {
+  const applied = session.setMode(m);
+  document.getElementById('mLearn').setAttribute('aria-pressed', applied === 'learn');
+  document.getElementById('mDrill').setAttribute('aria-pressed', applied === 'drill');
+  advance();
+}
+
+// ---- експорт / імпорт прогресу ----
+const ioPanel = document.getElementById('ioPanel');
+function closeIO() { ioPanel.classList.remove('show'); ioPanel.innerHTML = ''; }
+function ioMsg(kind, text) { const m = document.getElementById('ioMsg'); if (m) { m.textContent = text; m.className = 'io-msg ' + kind; } }
+
+function openExport() {
+  const code = store.exportCode();
+  ioPanel.innerHTML = `<h3>Код прогресу</h3><p>Скопіюй цей код і встав його на іншому пристрої через «Імпортувати код».</p><textarea id="ioText" readonly>${code}</textarea><div class="io-actions"><button class="btn" id="ioCopy">Копіювати</button><button class="btn ghost" id="ioClose">Закрити</button></div><div class="io-msg" id="ioMsg"></div>`;
+  ioPanel.classList.add('show');
+  const ta = document.getElementById('ioText');
+  document.getElementById('ioCopy').addEventListener('click', async () => {
+    ta.select();
+    try { await navigator.clipboard.writeText(code); ioMsg('ok', 'Скопійовано.'); }
+    catch (e) { try { document.execCommand('copy'); ioMsg('ok', 'Скопійовано.'); } catch (_) { ioMsg('bad', 'Скопіюй вручну: Ctrl/Cmd+C.'); } }
+  });
+  document.getElementById('ioClose').addEventListener('click', closeIO);
+  ta.focus();
+}
+
+function openImport() {
+  ioPanel.innerHTML = `<h3>Імпорт прогресу</h3><p>Встав код з іншого пристрою. Поточний прогрес буде замінено.</p><textarea id="ioText" placeholder="Встав код тут"></textarea><div class="io-actions"><button class="btn" id="ioApply">Застосувати</button><button class="btn ghost" id="ioClose">Закрити</button></div><div class="io-msg" id="ioMsg"></div>`;
+  ioPanel.classList.add('show');
+  document.getElementById('ioApply').addEventListener('click', () => {
+    try { store.importCode(document.getElementById('ioText').value); location.reload(); }
+    catch (e) { ioMsg('bad', e.message || 'Не вдалося імпортувати.'); }
+  });
+  document.getElementById('ioClose').addEventListener('click', closeIO);
+  document.getElementById('ioText').focus();
+}
+
+// ---- прив'язки ----
+document.getElementById('mLearn').addEventListener('click', () => setMode('learn'));
+document.getElementById('mDrill').addEventListener('click', () => setMode('drill'));
+document.getElementById('peek').addEventListener('click', e => {
+  peek = !peek;
+  e.target.textContent = peek ? 'Сховати таблицю' : 'Підглянути таблицю';
+  renderHeat(heatEl, topic, session.data.cards, peek);
+});
+document.getElementById('reset').addEventListener('click', () => {
+  if (confirm('Скинути весь прогрес?')) { session.reset(); closeIO(); refresh(); setMode('learn'); }
+});
+document.getElementById('exportBtn').addEventListener('click', openExport);
+document.getElementById('importBtn').addEventListener('click', openImport);
+
+bindKeyboard({
+  getCur: () => session.cur,
+  isAnswered: () => session.answered,
+  getAnswers: () => topic.answers,
+  onChoose: choose,
+  onCheck: checkRev,
+  onNext: advance
+});
+
+setInterval(() => {
+  refresh();
+  if (!session.cur && session.mode === 'learn' && session.pickNext()) advance();
+}, 15000);
+
+refresh();
+advance();
+</script>
+</body>
+</html>
