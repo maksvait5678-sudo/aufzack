@@ -104,12 +104,16 @@ fwd('akk'); qst('wen'); qst('wohin'); snt('akk'); rev('das'); rev('die');
 fwd('dat'); qst('wem'); qst('wo'); snt('dat'); rev('dem'); rev('den');
 fwd('gen'); qst('wessen'); snt('gen'); rev('des'); rev('der');
 
+// Лого теми — зроблене з її ж матеріалу: слово + пігулки der/die/das у їхніх кольорах.
+const logo = `<span class="tl-word">Artikel</span>` +
+  ['der', 'die', 'das'].map(a => `<span class="tl-pill" style="background:${COLORS[a]}">${a}</span>`).join('');
+
 export default {
   id: 'artikel',
   title: 'Артиклі: der, die, das',
   subtitle: 'Відмінки і роди',
   blurb: 'Основа основ: рід і відмінок задають форму майже кожного слова в реченні.',
-  brand: { word: 'Artikel', chips: ['der', 'die', 'das'] },
+  logo,
   answers: ARTS,
   colors: COLORS,
   matrix: {

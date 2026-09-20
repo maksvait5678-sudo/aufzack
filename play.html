@@ -3,16 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Deutsch Drill</title>
+<title>Auf Zack</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F3F0">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17171A">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="brand"></div>
+    <div class="head-left">
+      <a class="home-btn" href="index.html" aria-label="До вибору теми (Auf Zack)">
+        <svg class="mark" viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
+          <circle cx="20" cy="37" r="10" fill="currentColor"/>
+          <circle cx="44" cy="27" r="10" fill="var(--brand-accent)"/>
+        </svg>
+      </a>
+      <div class="topic-logo" id="topicLogo"></div>
+    </div>
     <div class="modes" role="group" aria-label="Режим">
       <button id="mLearn" aria-pressed="true">Навчання</button>
       <button id="mDrill" aria-pressed="false">Профілактика</button>
@@ -69,10 +84,9 @@ if (!topic) {
 
 const session = createSession(topic);
 
-// Брендинг з даних теми.
-document.querySelector('.brand').innerHTML =
-  `${topic.brand.word} ${topic.brand.chips.map(a => `<span style="background:${topic.colors[a]}">${a}</span>`).join('')}`;
-document.title = `${topic.brand.word} — ${topic.subtitle}`;
+// Лого теми в шапці (з її матеріалу); Auf Zack — лише кнопка повернення в хаб.
+document.getElementById('topicLogo').innerHTML = topic.logo || topic.title;
+document.title = `Auf Zack — ${topic.title}`;
 
 const cardEl = document.getElementById('card');
 const heatEl = document.getElementById('heat');

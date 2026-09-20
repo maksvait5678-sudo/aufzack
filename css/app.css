@@ -1,32 +1,54 @@
 :root{
-  --bg:#E7ECF8; --surface:#FFFFFF; --surface2:#F3F6FD; --ink:#0F1C4D; --muted:#5A6690; --line:#CFD7EC;
+  /* Брендові токени Auf Zack — тільки інтерфейс (шапка, режими, хаб, «Далі»). */
+  --brand-ink:#17171A; --brand-accent:#0F9B76; --brand-accent-strong:#0B7A5E;
+  --on-dark:#F4F3F0; --on-dark-muted:#9A9A94; --text-faint:#8A8A85;
+  /* Семантичні токени інтерфейсу на брендовій палітрі. */
+  --bg:#F4F3F0; --surface:#FFFFFF; --surface2:#ECEBE8; --ink:#17171A; --muted:#6B6B66; --line:#DEDDD8;
   --good:#17985A; --bad:#DC3535;
+  /* Кольори артиклів — мнемоніка з навчальної таблиці, НЕ бренд. Не чіпати. */
   --a-der:#16C1E3; --a-die:#BDF45F; --a-das:#D3D6DE; --a-des:#FF6BCB; --a-dem:#FF6040; --a-den:#FFB957;
-  --pill-ink:#13246A; --prog:#B6C2E6;
+  --pill-ink:#13246A; --prog:#C7C6C1;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0A1236; --surface:#131D4E; --surface2:#1A2660; --ink:#EEF2FF; --muted:#9DA8D8; --line:#2A3775;
-    --good:#3DDC8B; --bad:#FF6B6B; --prog:#3A4B9C;
+    --bg:#17171A; --surface:#212125; --surface2:#2A2A2E; --ink:#F4F3F0; --muted:#9A9A94; --line:#34343A;
+    --good:#3DDC8B; --bad:#FF6B6B; --prog:#4A4A50;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0A1236; --surface:#131D4E; --surface2:#1A2660; --ink:#EEF2FF; --muted:#9DA8D8; --line:#2A3775;
-  --good:#3DDC8B; --bad:#FF6B6B; --prog:#3A4B9C;
+  --bg:#17171A; --surface:#212125; --surface2:#2A2A2E; --ink:#F4F3F0; --muted:#9A9A94; --line:#34343A;
+  --good:#3DDC8B; --bad:#FF6B6B; --prog:#4A4A50;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45;min-height:100vh}
+body{background:var(--bg);color:var(--ink);font-family:"Archivo",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;line-height:1.45;min-height:100vh}
 button{font:inherit;color:inherit}
-button:focus-visible{outline:3px solid var(--a-der);outline-offset:2px}
+button:focus-visible{outline:3px solid var(--brand-accent);outline-offset:2px}
 .wrap{max-width:760px;margin:0 auto;padding:20px 16px 48px}
 
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
-.brand{font-weight:800;font-size:1.6rem;letter-spacing:-.02em;display:flex;gap:6px;align-items:baseline}
-.brand span{display:inline-block;padding:0 .35em;border-radius:.5em;color:var(--pill-ink);font-size:1.05rem}
+/* Auf Zack — лок-ап: умлаут-знак + слово. Слоган лишається тільки в хабі. */
+.lockup{display:inline-flex;align-items:center;gap:14px;text-decoration:none;color:var(--ink)}
+.lockup .mark{flex:0 0 auto;display:block;color:var(--ink)}
+.wordmark{font-size:2rem;letter-spacing:-.035em;line-height:1;white-space:nowrap}
+.wordmark .w-auf{font-weight:400;color:var(--muted)}
+.wordmark .w-zack{font-weight:700;color:var(--ink)}
+.lockup.sm{gap:10px}
+.lockup.sm .mark{width:32px;height:32px}
+.lockup.sm .wordmark{font-size:1.4rem}
+.slogan{font-size:.7rem;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--text-faint);margin-top:6px}
+/* Лого теми — власний знак теми з її матеріалу (напр. «Artikel» + пігулки der/die/das). */
+.topic-logo{display:inline-flex;gap:6px;align-items:baseline;flex-wrap:wrap;font-weight:800;letter-spacing:-.02em;color:var(--ink);line-height:1.1}
+.topic-logo .tl-word{font-size:1.5rem}
+.tl-pill{display:inline-block;padding:0 .35em;border-radius:.5em;color:var(--pill-ink);font-size:.95rem}
+/* Кнопка повернення в хаб — маленький знак Auf Zack. */
+.head-left{display:flex;align-items:center;gap:12px;min-width:0}
+.home-btn{display:inline-flex;align-items:center;justify-content:center;color:var(--ink);text-decoration:none;padding:5px;border-radius:10px;flex:0 0 auto}
+.home-btn:hover{background:var(--surface2)}
+.home-btn .mark{display:block}
 .modes{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
 .modes button{border:0;background:transparent;padding:7px 14px;border-radius:999px;cursor:pointer;font-weight:600;color:var(--muted)}
-.modes button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.modes button[aria-pressed="true"]{background:var(--brand-accent);color:#fff}
 
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 12px}
@@ -38,7 +60,7 @@ header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:s
 .card.flash-bad{box-shadow:inset 0 0 0 3px var(--bad)}
 .kind{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:.9rem;min-height:24px}
 .badge{font-size:.78rem;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--surface2);border:1px solid var(--line)}
-.badge.new{background:var(--a-die);color:var(--pill-ink);border-color:transparent}
+.badge.new{background:var(--brand-accent);color:#fff;border-color:transparent}
 .prompt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:14px 0}
 .big{font-size:clamp(2.4rem,9vw,3.6rem);font-weight:800;letter-spacing:-.03em;line-height:1}
 .gchip{font-size:1.05rem;font-weight:600;padding:5px 16px;border-radius:999px;border:2px solid var(--ink)}
@@ -78,8 +100,10 @@ header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:s
 .mini .c.target{opacity:1;outline:3px solid var(--ink);outline-offset:1px}
 .mini .c.chosen{opacity:1;outline:3px dashed var(--bad);outline-offset:1px}
 .why{font-size:.95rem;color:var(--ink);background:var(--surface2);border-left:3px solid var(--a-der);border-radius:0 10px 10px 0;padding:8px 12px}
-.btn{border:0;border-radius:14px;padding:11px 20px;font-weight:800;cursor:pointer;background:var(--ink);color:var(--bg)}
+.btn{border:0;border-radius:14px;padding:11px 20px;font-weight:800;cursor:pointer;background:var(--brand-accent);color:#fff}
+.btn:hover{background:var(--brand-accent-strong)}
 .btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:600}
+.btn.ghost:hover{background:transparent;color:var(--ink)}
 
 .done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px}
 .done p{margin:0;color:var(--muted);max-width:40ch}
@@ -102,13 +126,15 @@ footer{display:flex;justify-content:space-between;align-items:center;margin-top:
 .intro{color:var(--muted);margin:0 0 16px;max-width:60ch}
 .topics{display:flex;flex-direction:column;gap:12px}
 .topic-card{display:block;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:16px 18px}
-.topic-card:focus-visible{outline:3px solid var(--a-der);outline-offset:2px}
+.topic-card:focus-visible{outline:3px solid var(--brand-accent);outline-offset:2px}
+.topic-card:hover{border-color:var(--brand-accent)}
 .topic-card h2{margin:0 0 4px;font-size:1.2rem}
-.topic-card .why{color:var(--muted);font-size:.95rem;margin:0 0 12px}
+.topic-card .blurb{color:var(--muted);font-size:.95rem;margin:0 0 12px}
 .topic-meta{display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
 .topic-meta .m b{font-size:1.25rem;font-weight:800}
 .topic-meta .m small{color:var(--muted);font-size:.78rem;margin-left:5px}
-.cta{display:inline-block;margin-top:14px;background:var(--ink);color:var(--bg);border-radius:14px;padding:11px 20px;font-weight:800;text-decoration:none}
+.cta{display:inline-block;margin-top:14px;background:var(--brand-accent);color:#fff;border-radius:14px;padding:11px 20px;font-weight:800;text-decoration:none}
+.cta:hover{background:var(--brand-accent-strong)}
 
 /* Панель експорту/імпорту прогресу */
 .io-panel{display:none;margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}
