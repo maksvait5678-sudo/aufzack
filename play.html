@@ -20,7 +20,7 @@
 <div class="wrap">
   <header>
     <div class="head-left">
-      <a class="home-btn" href="index.html" aria-label="До вибору теми (Auf Zack)">
+      <a class="home-btn" href="index.html" data-i18n-aria="ui.play.homeAria">
         <svg class="mark" viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
           <circle cx="20" cy="37" r="10" fill="currentColor"/>
           <circle cx="44" cy="27" r="10" fill="var(--brand-accent)"/>
@@ -28,42 +28,42 @@
       </a>
       <div class="topic-logo" id="topicLogo"></div>
     </div>
-    <div class="modes" role="group" aria-label="Режим">
-      <button id="mLearn" aria-pressed="true">Навчання</button>
-      <button id="mDrill" aria-pressed="false">Профілактика</button>
+    <div class="modes" role="group" data-i18n-aria="ui.play.modeGroupAria">
+      <button id="mLearn" aria-pressed="true" data-i18n="ui.play.learn"></button>
+      <button id="mDrill" aria-pressed="false" data-i18n="ui.play.drill"></button>
     </div>
   </header>
 
   <div class="stats">
-    <div class="stat"><b id="sDue">0</b><small>на черзі</small></div>
-    <div class="stat"><b id="sLearned">0/0</b><small>вивчено</small></div>
-    <div class="stat"><b id="sStreak">0</b><small>серія (рекорд <span id="sBest">0</span>)</small></div>
-    <div class="stat"><b id="sToday">0</b><small>відповідей сьогодні</small></div>
+    <div class="stat"><b id="sDue">0</b><small data-i18n="ui.play.statDue"></small></div>
+    <div class="stat"><b id="sLearned">0/0</b><small data-i18n="ui.play.statLearned"></small></div>
+    <div class="stat"><b id="sStreak">0</b><small id="lStreak"></small></div>
+    <div class="stat"><b id="sToday">0</b><small data-i18n="ui.play.statToday"></small></div>
   </div>
 
   <div class="card" id="card" aria-live="polite"></div>
 
   <section class="map">
     <div class="map-top">
-      <h2>Карта засвоєння</h2>
-      <button class="btn ghost" id="peek">Підглянути таблицю</button>
+      <h2 data-i18n="ui.play.mapTitle"></h2>
+      <button class="btn ghost" id="peek" data-i18n="ui.play.peekShow"></button>
     </div>
     <div class="heat" id="heat"></div>
   </section>
 
   <footer>
-    <span id="sync">Прогрес зберігається в цьому браузері</span>
+    <span id="sync" data-i18n="ui.play.syncNote"></span>
     <span>
-      <button class="linkbtn" id="exportBtn">Експортувати код</button>
+      <button class="linkbtn" id="exportBtn" data-i18n="ui.play.exportBtn"></button>
       ·
-      <button class="linkbtn" id="importBtn">Імпортувати код</button>
+      <button class="linkbtn" id="importBtn" data-i18n="ui.play.importBtn"></button>
       ·
-      <button class="linkbtn" id="reset">Скинути прогрес</button>
+      <button class="linkbtn" id="reset" data-i18n="ui.play.reset"></button>
     </span>
   </footer>
   <div class="io-panel" id="ioPanel"></div>
 
-  <p style="margin-top:14px"><a class="linkbtn" href="index.html">← До вибору теми</a></p>
+  <p style="margin-top:14px"><a class="linkbtn" href="index.html" data-i18n="ui.play.back"></a></p>
 </div>
 
 <script type="module">
@@ -74,19 +74,24 @@ import { renderCard, showChoiceFeedback, showGridFeedback, renderDone } from './
 import { renderHeat } from './js/ui/heat.js';
 import { renderStats } from './js/ui/stats.js';
 import { bindKeyboard } from './js/ui/keyboard.js';
+import { initLang, applyDom, t } from './js/i18n/index.js';
+
+initLang();
+applyDom();
 
 const params = new URLSearchParams(location.search);
 const topic = getTopic(params.get('topic') || 'artikel');
 if (!topic) {
-  document.querySelector('.wrap').innerHTML = '<p>Тему не знайдено.</p><p><a href="index.html">До вибору теми</a></p>';
+  document.querySelector('.wrap').innerHTML = `<p>${t('ui.play.notFound')}</p><p><a href="index.html">${t('ui.play.notFoundLink')}</a></p>`;
   throw new Error('topic not found');
 }
 
 const session = createSession(topic);
+const topicTitle = t(`topics.${topic.id}.title`);
 
 // Лого теми в шапці (з її матеріалу); Auf Zack — лише кнопка повернення в хаб.
-document.getElementById('topicLogo').innerHTML = topic.logo || topic.title;
-document.title = `Auf Zack — ${topic.title}`;
+document.getElementById('topicLogo').innerHTML = topic.logo || topicTitle;
+document.title = t('ui.play.title', { topic: topicTitle });
 
 const cardEl = document.getElementById('card');
 const heatEl = document.getElementById('heat');
@@ -94,7 +99,7 @@ const statEls = {
   due: document.getElementById('sDue'),
   learned: document.getElementById('sLearned'),
   streak: document.getElementById('sStreak'),
-  best: document.getElementById('sBest'),
+  streakLabel: document.getElementById('lStreak'),
   today: document.getElementById('sToday')
 };
 
@@ -161,24 +166,24 @@ function ioMsg(kind, text) { const m = document.getElementById('ioMsg'); if (m) 
 
 function openExport() {
   const code = store.exportCode();
-  ioPanel.innerHTML = `<h3>Код прогресу</h3><p>Скопіюй цей код і встав його на іншому пристрої через «Імпортувати код».</p><textarea id="ioText" readonly>${code}</textarea><div class="io-actions"><button class="btn" id="ioCopy">Копіювати</button><button class="btn ghost" id="ioClose">Закрити</button></div><div class="io-msg" id="ioMsg"></div>`;
+  ioPanel.innerHTML = `<h3>${t('ui.io.exportTitle')}</h3><p>${t('ui.io.exportHint')}</p><textarea id="ioText" readonly>${code}</textarea><div class="io-actions"><button class="btn" id="ioCopy">${t('ui.io.copy')}</button><button class="btn ghost" id="ioClose">${t('ui.io.close')}</button></div><div class="io-msg" id="ioMsg"></div>`;
   ioPanel.classList.add('show');
   const ta = document.getElementById('ioText');
   document.getElementById('ioCopy').addEventListener('click', async () => {
     ta.select();
-    try { await navigator.clipboard.writeText(code); ioMsg('ok', 'Скопійовано.'); }
-    catch (e) { try { document.execCommand('copy'); ioMsg('ok', 'Скопійовано.'); } catch (_) { ioMsg('bad', 'Скопіюй вручну: Ctrl/Cmd+C.'); } }
+    try { await navigator.clipboard.writeText(code); ioMsg('ok', t('ui.io.copied')); }
+    catch (e) { try { document.execCommand('copy'); ioMsg('ok', t('ui.io.copied')); } catch (_) { ioMsg('bad', t('ui.io.copyManual')); } }
   });
   document.getElementById('ioClose').addEventListener('click', closeIO);
   ta.focus();
 }
 
 function openImport() {
-  ioPanel.innerHTML = `<h3>Імпорт прогресу</h3><p>Встав код з іншого пристрою. Поточний прогрес буде замінено.</p><textarea id="ioText" placeholder="Встав код тут"></textarea><div class="io-actions"><button class="btn" id="ioApply">Застосувати</button><button class="btn ghost" id="ioClose">Закрити</button></div><div class="io-msg" id="ioMsg"></div>`;
+  ioPanel.innerHTML = `<h3>${t('ui.io.importTitle')}</h3><p>${t('ui.io.importHint')}</p><textarea id="ioText" placeholder="${t('ui.io.importPlaceholder')}"></textarea><div class="io-actions"><button class="btn" id="ioApply">${t('ui.io.apply')}</button><button class="btn ghost" id="ioClose">${t('ui.io.close')}</button></div><div class="io-msg" id="ioMsg"></div>`;
   ioPanel.classList.add('show');
   document.getElementById('ioApply').addEventListener('click', () => {
     try { store.importCode(document.getElementById('ioText').value); location.reload(); }
-    catch (e) { ioMsg('bad', e.message || 'Не вдалося імпортувати.'); }
+    catch (e) { const k = ['errBad', 'errIncompatible'].includes(e.message) ? e.message : 'errGeneric'; ioMsg('bad', t('ui.io.' + k)); }
   });
   document.getElementById('ioClose').addEventListener('click', closeIO);
   document.getElementById('ioText').focus();
@@ -189,11 +194,11 @@ document.getElementById('mLearn').addEventListener('click', () => setMode('learn
 document.getElementById('mDrill').addEventListener('click', () => setMode('drill'));
 document.getElementById('peek').addEventListener('click', e => {
   peek = !peek;
-  e.target.textContent = peek ? 'Сховати таблицю' : 'Підглянути таблицю';
+  e.target.textContent = t(peek ? 'ui.play.peekHide' : 'ui.play.peekShow');
   renderHeat(heatEl, topic, session.data.cards, peek);
 });
 document.getElementById('reset').addEventListener('click', () => {
-  if (confirm('Скинути весь прогрес?')) { session.reset(); closeIO(); refresh(); setMode('learn'); }
+  if (confirm(t('ui.play.resetConfirm'))) { session.reset(); closeIO(); refresh(); setMode('learn'); }
 });
 document.getElementById('exportBtn').addEventListener('click', openExport);
 document.getElementById('importBtn').addEventListener('click', openImport);

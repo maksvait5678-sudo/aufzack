@@ -1,6 +1,7 @@
 // localStorage: формат v:2, багато тем, одноразова міграція зі старого ключа.
 // {
 //   v: 2,
+//   lang: 'uk',
 //   topics: { artikel: { cards, streak, best, today } },
 //   updatedAt
 // }
@@ -8,12 +9,13 @@
 const KEY = 'deutsch-drill';
 const OLD_KEY_ARTIKEL = 'artikel-srs-v1';
 export const VERSION = 2;
+export const DEFAULT_LANG = 'uk';
 
 export function freshTopic() {
   return { cards: {}, streak: 0, best: 0, today: { d: '', n: 0 } };
 }
 function freshAll() {
-  return { v: VERSION, topics: {}, updatedAt: 0 };
+  return { v: VERSION, lang: DEFAULT_LANG, topics: {}, updatedAt: 0 };
 }
 
 function readRaw() {
@@ -55,6 +57,18 @@ export function load() {
   return state;
 }
 
+// Мова інтерфейсу зберігається в тому ж ключі прогресу; за замовчуванням uk.
+export function getLang() {
+  return load().lang || DEFAULT_LANG;
+}
+
+export function setLang(lang) {
+  const all = load();
+  all.lang = lang;
+  all.updatedAt = Date.now();
+  try { localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) { /* квота */ }
+}
+
 export function getTopic(id) {
   const all = load();
   return all.topics[id] || freshTopic();
@@ -79,15 +93,16 @@ export function exportCode() {
 }
 
 // Імпорт коду. Валідуємо перед записом; при помилці наявний прогрес не чіпаємо.
+// Помилки кидаємо КОДАМИ (errBad/errIncompatible) — текст локалізує UI.
 export function importCode(code) {
   let obj;
   try {
     obj = JSON.parse(decodeURIComponent(escape(atob(String(code).trim()))));
   } catch (e) {
-    throw new Error('Код пошкоджено або порожній.');
+    throw new Error('errBad');
   }
   if (!obj || obj.v !== VERSION || typeof obj.topics !== 'object') {
-    throw new Error('Несумісний код прогресу.');
+    throw new Error('errIncompatible');
   }
   state = obj;
   try { localStorage.setItem(KEY, JSON.stringify(obj)); } catch (e) { /* квота */ }
