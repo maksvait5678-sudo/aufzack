@@ -25,19 +25,46 @@ const T = {
 const ARTS = ['der', 'die', 'das', 'des', 'dem', 'den'];
 const COLORS = { der: '#16C1E3', die: '#BDF45F', das: '#D3D6DE', des: '#FF6BCB', dem: '#FF6040', den: '#FFB957' };
 
-// Питальні слова: слово + відмінок, на який воно вказує.
+// Питальні слова: слово, відмінок, правило (питання → відмінок).
 const QW = {
-  wer: ['Wer?', 'nom'], wessen: ['Wessen?', 'gen'],
-  wem: ['Wem?', 'dat'], wo: ['Wo?', 'dat'],
-  wen: ['Wen?', 'akk'], wohin: ['Wohin?', 'akk']
+  wer: ['Wer?', 'nom', 'Wer?/Was? питає про підмет → Nominativ'],
+  wessen: ['Wessen?', 'gen', 'Wessen? — належність → Genitiv'],
+  wem: ['Wem?', 'dat', 'Wem? — адресат/отримувач → Dativ'],
+  wo: ['Wo?', 'dat', 'Wo? — місце без переходу межі → Dativ'],
+  wen: ['Wen?', 'akk', 'Wen?/Was? — прямий додаток → Akkusativ'],
+  wohin: ['Wohin?', 'akk', 'Wohin? — напрям, зміна місця → Akkusativ']
 };
 
-// Речення з пропуском: [рід, текст, підказка-питання?].
+// Речення з пропуском: { рід, текст, підказка-питання?, правило? }.
 const SENT = {
-  nom: [['m', '___ Hund bellt.'], ['f', '___ Lampe ist neu.'], ['n', '___ Fenster ist offen.'], ['p', '___ Kinder spielen.']],
-  akk: [['m', 'Ich sehe ___ Hund.'], ['f', 'Ich kaufe ___ Lampe.'], ['n', 'Er öffnet ___ Fenster.'], ['p', 'Wir besuchen ___ Kinder.'], ['m', 'Ich lege das Buch auf ___ Tisch.', 'Wohin?'], ['f', 'Sie hängt das Bild an ___ Wand.', 'Wohin?']],
-  dat: [['m', 'Ich helfe ___ Mann.'], ['f', 'Er gibt ___ Frau eine Blume.'], ['n', 'Wir spielen mit ___ Kind.'], ['p', 'Ich danke ___ Kindern.'], ['m', 'Das Buch liegt auf ___ Tisch.', 'Wo?'], ['f', 'Das Bild hängt an ___ Wand.', 'Wo?']],
-  gen: [['m', 'Das Auto ___ Vaters ist rot.'], ['f', 'Die Tasche ___ Mutter ist schwer.'], ['n', 'Die Farbe ___ Hauses ist weiß.'], ['p', 'Die Lehrerin ___ Kinder ist nett.']]
+  nom: [
+    { g: 'm', text: '___ Hund bellt.', why: 'Підмет речення → Nominativ' },
+    { g: 'f', text: '___ Lampe ist neu.', why: 'Підмет речення → Nominativ' },
+    { g: 'n', text: '___ Fenster ist offen.', why: 'Підмет речення → Nominativ' },
+    { g: 'p', text: '___ Kinder spielen.', why: 'Підмет речення → Nominativ' }
+  ],
+  akk: [
+    { g: 'm', text: 'Ich sehe ___ Hund.', why: 'sehen: прямий додаток → Akkusativ (Wen?)' },
+    { g: 'f', text: 'Ich kaufe ___ Lampe.', why: 'kaufen: що купуємо → Akkusativ (Was?)' },
+    { g: 'n', text: 'Er öffnet ___ Fenster.', why: 'öffnen: прямий додаток → Akkusativ (Was?)' },
+    { g: 'p', text: 'Wir besuchen ___ Kinder.', why: 'besuchen: кого → Akkusativ (Wen?)' },
+    { g: 'm', text: 'Ich lege das Buch auf ___ Tisch.', ask: 'Wohin?', why: 'legen — зміна місця. Wohin? → Akkusativ' },
+    { g: 'f', text: 'Sie hängt das Bild an ___ Wand.', ask: 'Wohin?', why: 'hängen тут дія, напрям. Wohin? → Akkusativ' }
+  ],
+  dat: [
+    { g: 'm', text: 'Ich helfe ___ Mann.', why: 'helfen керує Dativ (Wem?)' },
+    { g: 'f', text: 'Er gibt ___ Frau eine Blume.', why: 'geben: адресат → Dativ (Wem?)' },
+    { g: 'n', text: 'Wir spielen mit ___ Kind.', why: 'mit завжди Dativ' },
+    { g: 'p', text: 'Ich danke ___ Kindern.', why: 'danken керує Dativ (Wem?)' },
+    { g: 'm', text: 'Das Buch liegt auf ___ Tisch.', ask: 'Wo?', why: 'liegen — стан, місце. Wo? → Dativ' },
+    { g: 'f', text: 'Das Bild hängt an ___ Wand.', ask: 'Wo?', why: 'hängen тут стан. Wo? → Dativ' }
+  ],
+  gen: [
+    { g: 'm', text: 'Das Auto ___ Vaters ist rot.', why: 'Належність → Genitiv (Wessen?)' },
+    { g: 'f', text: 'Die Tasche ___ Mutter ist schwer.', why: 'Належність → Genitiv (Wessen?)' },
+    { g: 'n', text: 'Die Farbe ___ Hauses ist weiß.', why: 'Належність → Genitiv (Wessen?)' },
+    { g: 'p', text: 'Die Lehrerin ___ Kinder ist nett.', why: 'Належність → Genitiv (Wessen?)' }
+  ]
 };
 
 // Колода в порядку введення нових. Типи — контракт рендеру (SPEC §4).
@@ -52,17 +79,17 @@ const fwd = c => GENDERS.forEach(g => cards.push({
 
 // choice: «Питання + рід» — показано питальне слово.
 const qst = w => {
-  const [word, c] = QW[w];
+  const [word, c, why] = QW[w];
   GENDERS.forEach(g => cards.push({
     id: `q-${w}-${g.k}`, type: 'choice', kind: 'Питання + рід',
-    prompt: word, ask: word, answer: T[c][g.k], cell: { row: c, col: g.k }
+    prompt: word, ask: word, why, answer: T[c][g.k], cell: { row: c, col: g.k }
   }));
 };
 
 // sentence: речення з пропуском.
 const snt = c => SENT[c].forEach((s, i) => cards.push({
   id: `s-${c}-${i}`, type: 'sentence', kind: 'Встав артикль',
-  prompt: s[1], ask: s[2], answer: T[c][s[0]], cell: { row: c, col: s[0] }
+  prompt: s.text, ask: s.ask, why: s.why, answer: T[c][s.g], cell: { row: c, col: s.g }
 }));
 
 // grid: зворотна картка — показано артикль, позначити всі його клітинки.

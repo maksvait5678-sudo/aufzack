@@ -1,7 +1,7 @@
 // Тести чистого ядра. Запуск: node --test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { grade, pick, drillWeight, IV, MAXB, FAST } from '../js/engine/srs.js';
+import { grade, pick, drillWeight, IV, MAXB, FAST, FAST_ERROR, RELEARN_GAP, MIN } from '../js/engine/srs.js';
 
 const s = (b, due, r = 0, w = 0) => ({ b, due, r, w });
 
@@ -30,10 +30,10 @@ test('grade: правильно, але повільно — рівень не �
 
 test('grade: помилка — b=0, due = now + IV[0], лічильник помилок росте', () => {
   const now = 1000;
-  const { state } = grade(s(5, 999, 2, 1), { ok: false, ms: 100, type: 'choice', mode: 'learn', now });
+  const { state } = grade(s(5, 999, 2, 1), { ok: false, ms: 3000, type: 'choice', mode: 'learn', now });
   assert.equal(state.b, 0);
   assert.equal(state.due, now + IV[0]);
-  assert.equal(state.w, 2);
+  assert.equal(state.w, 2); // повільна помилка → +1 (було 1)
 });
 
 test('grade: межа швидкості — ms === ліміту вважається швидким', () => {
@@ -140,13 +140,15 @@ test('pick: null, коли немає ні черги, ні нових карт�
   assert.equal(r, null);
 });
 
-test('pick: recN=3 при колоді понад 4 введені картки', () => {
+test('pick: recN=6 — виключає 6 останніх показаних', () => {
   const cards = deck(8);
   const now = 1000;
   const states = {};
-  for (let i = 0; i < 5; i++) states['c' + i] = s(0, 0); // 5 прострочених, intro>4
-  const r = pick(cards, states, { mode: 'learn', recent: ['c0', 'c1', 'c2'], now });
-  assert.ok(!['c0', 'c1', 'c2'].includes(r.card.id)); // три останні виключено
+  for (let i = 0; i < 8; i++) states['c' + i] = s(0, 0); // 8 прострочених, intro>4
+  const recent = ['c0', 'c1', 'c2', 'c3', 'c4', 'c5'];
+  const r = pick(cards, states, { mode: 'learn', recent, now });
+  assert.ok(!recent.includes(r.card.id));       // жодна з 6 останніх
+  assert.ok(['c6', 'c7'].includes(r.card.id));
 });
 
 test('pick: профілактика — детермінований вибір за вагами і rng', () => {
@@ -163,4 +165,83 @@ test('pick: профілактика виключає останні показ�
   const states = { c0: s(0, 0), c1: s(0, 0) };
   const r = pick(cards, states, { mode: 'drill', recent: ['c0'], now: 1000, rng: () => 0 });
   assert.equal(r.card.id, 'c1');
+});
+
+// -------------------------------------------------- §A: перевчання і штрафи
+
+test('IV: рівень 0 підняли до 60 с і зрівняли з рівнем 1', () => {
+  assert.equal(IV[0], MIN);
+  assert.equal(IV[0], IV[1]);
+});
+
+test('grade: помилка ставить relearn і повертає через IV[0]', () => {
+  const now = 1000;
+  const { state } = grade(s(4, 0, 0, 0), { ok: false, ms: 3000, type: 'choice', mode: 'learn', now });
+  assert.equal(state.b, 0);
+  assert.equal(state.relearn, true);
+  assert.equal(state.due, now + IV[0]);
+  assert.equal(state.w, 1); // повільна помилка → +1
+});
+
+test('grade: швидка помилка (< FAST_ERROR) додає w += 2', () => {
+  const now = 1000;
+  const { state } = grade(s(3, 0, 0, 0), { ok: false, ms: FAST_ERROR - 1, type: 'choice', mode: 'learn', now });
+  assert.equal(state.w, 2);
+  assert.equal(state.relearn, true);
+});
+
+test('grade: під час relearn рівень не вище 2, перша правильна розносить наступну спробу', () => {
+  const now = 1000;
+  const { state } = grade({ b: 2, due: 0, r: 0, w: 1, relearn: true }, { ok: true, ms: 100, type: 'choice', mode: 'learn', now });
+  assert.equal(state.b, 2);            // не 3
+  assert.equal(state.relearn, true);
+  assert.equal(state.relearnAt, now);
+  assert.ok(state.due - now >= RELEARN_GAP); // друга спроба щонайменше через розрив
+});
+
+test('grade: relearn знімається лише після другої правильної через ≥ RELEARN_GAP', () => {
+  const t0 = 1000;
+  let st = grade(s(0, 0, 0, 0), { ok: false, ms: 3000, type: 'choice', mode: 'learn', now: t0 }).state;
+  assert.equal(st.relearn, true);
+
+  const t1 = t0 + IV[0];
+  st = grade(st, { ok: true, ms: 100, type: 'choice', mode: 'learn', now: t1 }).state;
+  assert.equal(st.relearn, true);
+  assert.equal(st.relearnAt, t1);
+  assert.ok(st.b <= 2);
+
+  // правильна раніше ніж через розрив — прапорець лишається
+  const early = grade(st, { ok: true, ms: 100, type: 'choice', mode: 'learn', now: t1 + RELEARN_GAP - 1 }).state;
+  assert.equal(early.relearn, true);
+
+  // правильна після розриву — прапорець знято
+  const t2 = t1 + RELEARN_GAP;
+  st = grade(st, { ok: true, ms: 100, type: 'choice', mode: 'learn', now: t2 }).state;
+  assert.equal(st.relearn, false);
+  assert.equal(st.relearnAt, undefined);
+
+  // після зняття рівень знову може рости вище 2
+  st = grade(st, { ok: true, ms: 100, type: 'choice', mode: 'learn', now: st.due }).state;
+  assert.ok(st.b >= 3);
+});
+
+test('pick: relearn не рахуються в ліміті 6 — нову вводимо попри 6 у роботі', () => {
+  const cards = deck(8);
+  const now = 1000;
+  const states = {};
+  for (let i = 0; i < 5; i++) states['c' + i] = { b: 1, due: now + RELEARN_GAP, r: 0, w: 1, relearn: true };
+  states.c5 = { b: 1, due: now + RELEARN_GAP, r: 1, w: 0 }; // звичайна картка в роботі
+  const r = pick(cards, states, { mode: 'learn', recent: [], now });
+  assert.equal(r.isNew, true);     // working = лише c5 (1) < 6
+  assert.equal(r.card.id, 'c6');
+});
+
+test('pick: дострокове повторення не витягує relearn-картку', () => {
+  const cards = deck(8);
+  const now = 1000;
+  const states = {};
+  for (let i = 0; i < 6; i++) states['c' + i] = { b: 2, due: now + 1e9, r: 1, w: 0 }; // 6 у роботі, не relearn
+  states.c6 = { b: 1, due: now + RELEARN_GAP, r: 0, w: 1, relearn: true };            // кандидат для early, але relearn
+  const r = pick(cards, states, { mode: 'learn', recent: [], now });
+  assert.notEqual(r.card.id, 'c6'); // relearn виключено з дострокового повторення
 });
