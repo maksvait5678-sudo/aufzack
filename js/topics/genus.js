@@ -39,9 +39,11 @@ const GROUPS = [
 
 const groupOf = s => s ? SIGNAL_GENDER[s] + '-sig' : 'none';
 
-// why картки: сигнал → правило; sx → «виняток з правила»; інакше — напам'ять.
+// why картки: сигнал (s або sq) → те саме правило; sx → «виняток»; інакше — напам'ять.
+// sq не дає групи (немає s), тож у карті засвоєння слово лишається в «без сигналу».
 const whyOf = d => {
   if (d.s) return SIGNAL_WHY[d.s];
+  if (d.sq) return SIGNAL_WHY[d.sq];
   if (d.sx) return `Виняток із правила «-${d.sx} → ${SIGNAL_GENDER[d.sx]}»`;
   return 'Немає сигналу — цей рід треба запам\'ятати.';
 };

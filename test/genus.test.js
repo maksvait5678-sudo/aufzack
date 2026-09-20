@@ -39,20 +39,44 @@ test('genus data: sx — справжній виняток (матчить па�
   }
 });
 
-test('genus data: посигнальний скан колоди — жодної рядкової колізії без обробки', () => {
-  const byWord = Object.fromEntries(play.map(d => [d.w, d]));
+test('genus data: sq відповідає роду і не поєднується з s', () => {
+  for (const d of play) {
+    if (!d.sq) continue;
+    assert.ok(SIGNAL_GENDER[d.sq], `невідомий sq ${d.sq} у ${d.w}`);
+    assert.equal(d.g, SIGNAL_GENDER[d.sq], `${d.w}: sq=${d.sq} очікує ${SIGNAL_GENDER[d.sq]}, а рід ${d.g}`);
+    assert.equal(d.s, undefined, `${d.w}: s і sq взаємовиключні`);
+  }
+});
+
+test('genus data: слово на відомий суфікс має s, sq або sx (нема безправильних)', () => {
+  for (const sig of Object.keys(SCAN)) {
+    const P = SCAN[sig];
+    for (const d of play) {
+      if (!P.test(d.w)) continue;
+      assert.ok(d.s || d.sq || d.sx, `${d.w} закінчується на відомий суфікс, але без s/sq/sx`);
+    }
+  }
+});
+
+test('genus data: посигнальний скан — кожен невизнаний виняток позначено sx', () => {
+  // Слово того ж роду, що й сигнал, — консистентне (може мати s-підказку або бути лексикою
+  // без сигналу за ліміт-правилом). Слово ІНШОГО роду, що матчить патерн, — обов'язково sx.
   for (const sig of Object.keys(SCAN)) {
     const P = SCAN[sig], G = SIGNAL_GENDER[sig];
     for (const d of play) {
       if (!P.test(d.w)) continue;
-      if (d.g === G) {
-        // слово підпадає під сигнал → має консистентний s (для підказки)
-        assert.ok(d.s && SIGNAL_GENDER[d.s] === G, `${d.w} матчить -${sig} (${G}), але без консистентного s`);
-      } else {
-        // інший рід → має бути позначене винятком саме цього сигналу
-        assert.equal(d.sx, sig, `${d.w} (${d.g}) матчить -${sig}, але не позначене sx:${sig}`);
-      }
+      if (d.g !== G) assert.equal(d.sx, sig, `${d.w} (${d.g}) матчить -${sig}, але не позначене sx:${sig}`);
     }
+  }
+});
+
+test('genus data: ліміт слів на сигнал (5, для -e 8) — падати на перевищенні', () => {
+  const CAP = { e: 8 };
+  const DEFAULT = 5;
+  const counts = play.filter(d => d.s).reduce((m, d) => ((m[d.s] = (m[d.s] || 0) + 1), m), {});
+  for (const [sig, n] of Object.entries(counts)) {
+    const cap = CAP[sig] ?? DEFAULT;
+    assert.ok(n <= cap, `сигнал -${sig}: ${n} слів, ліміт ${cap}`);
   }
 });
 
@@ -91,9 +115,10 @@ test('genus topic: todo не в грі; кожна картка має cell/answ
 });
 
 test('genus data: пропорція (друк, не умова падіння)', () => {
-  const sig = play.filter(d => d.s).length;
-  const none = play.filter(d => !d.s).length;
+  const s = play.filter(d => d.s).length;
+  const sq = play.filter(d => d.sq).length;
+  const rest = play.length - s - sq;
   const byG = play.reduce((m, d) => ((m[d.g] = (m[d.g] || 0) + 1), m), {});
-  console.log(`  genus: у грі ${play.length} | сигнальних ${sig} / без сигналу ${none} | ${JSON.stringify(byG)}`);
+  console.log(`  genus: у грі ${play.length} | у групах ${s} / під правилом поза групою ${sq} / без правила ${rest} | ${JSON.stringify(byG)}`);
   assert.ok(play.length > 0);
 });

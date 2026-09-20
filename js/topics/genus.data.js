@@ -1,8 +1,10 @@
 // Дані теми «Рід іменників» — ДЛЯ ПЕРЕВІРКИ ВЧИТЕЛЕМ.
-// Формат: { w, g, s?, sx?, weak?, genEs?, pl?, todo? }
+// Формат: { w, g, s?, sq?, sx?, weak?, genEs?, pl?, todo? }
 //   w   — слово (Nominativ Singular).
 //   g   — рід: 'der' | 'die' | 'das'.
-//   s   — сигнал, під який слово підпадає (метадані для підказки; стоїть на ВСІХ таких словах).
+//   s   — сигнал: слово входить у сигнальну групу карти засвоєння (ліміт: ≤5, для -e ≤8).
+//   sq  — слово підпадає під сигнал, але НЕ входить у групу (перевищення ліміту). Правило діє —
+//         фідбек показує те саме правило, що й для s; у карті засвоєння — в «без сигналу».
 //   sx  — анти-сигнал: слово орфографічно матчить сигнал, але має інший рід (виняток; показується).
 //   weak — n-Deklination: true (Junge, Mensch) або 'mixed' (Name, Herz — des Namens/Herzens,
 //          Akk das Herz). Будь-яке weak заблоковане в шаблонах із пропуском артикля (SPEC).
@@ -26,16 +28,12 @@ export default [
   { w: 'Meinung', g: 'die', s: 'ung' },
   { w: 'Rechnung', g: 'die', s: 'ung' },
   { w: 'Ordnung', g: 'die', s: 'ung' },
-  { w: 'Prüfung', g: 'die', s: 'ung' },
-  { w: 'Erfahrung', g: 'die', s: 'ung' },
-  { w: 'Einladung', g: 'die', s: 'ung' },
   // -heit: абстрактна якість → die
   { w: 'Freiheit', g: 'die', s: 'heit' },
   { w: 'Gesundheit', g: 'die', s: 'heit' },
   { w: 'Krankheit', g: 'die', s: 'heit' },
   { w: 'Wahrheit', g: 'die', s: 'heit' },
   { w: 'Kindheit', g: 'die', s: 'heit' },
-  { w: 'Sicherheit', g: 'die', s: 'heit' },
   // -keit: абстрактна якість → die
   { w: 'Möglichkeit', g: 'die', s: 'keit' },
   { w: 'Schwierigkeit', g: 'die', s: 'keit' },
@@ -52,31 +50,15 @@ export default [
   { w: 'Situation', g: 'die', s: 'ion' },
   { w: 'Lektion', g: 'die', s: 'ion' },
   { w: 'Diskussion', g: 'die', s: 'ion' },
-  { w: 'Position', g: 'die', s: 'ion' },
-  { w: 'Region', g: 'die', s: 'ion' },
-  { w: 'Station', g: 'die', s: 'ion' },
-  { w: 'Funktion', g: 'die', s: 'ion' },
-  // -e (ненаголошене schwa): зазвичай die
+  // -e (ненаголошене schwa): зазвичай die. Ліміт 8 (найбільше винятків — потрібен контраст).
   { w: 'Blume', g: 'die', s: 'e' },
   { w: 'Katze', g: 'die', s: 'e' },
   { w: 'Lampe', g: 'die', s: 'e' },
   { w: 'Straße', g: 'die', s: 'e' },
   { w: 'Sonne', g: 'die', s: 'e' },
-  { w: 'Nase', g: 'die', s: 'e' },
-  { w: 'Erde', g: 'die', s: 'e' },
-  { w: 'Woche', g: 'die', s: 'e' },
-  { w: 'Stunde', g: 'die', s: 'e' },
-  { w: 'Minute', g: 'die', s: 'e' },
-  { w: 'Frage', g: 'die', s: 'e' },
-  { w: 'Sprache', g: 'die', s: 'e' },
-  { w: 'Reise', g: 'die', s: 'e' },
-  { w: 'Tasche', g: 'die', s: 'e' },
-  { w: 'Brille', g: 'die', s: 'e' },
   { w: 'Schule', g: 'die', s: 'e' },
-  { w: 'Klasse', g: 'die', s: 'e' },
-  { w: 'Familie', g: 'die', s: 'e' },
-  { w: 'Seite', g: 'die', s: 'e' },
-  { w: 'Adresse', g: 'die', s: 'e' },
+  { w: 'Woche', g: 'die', s: 'e' },
+  { w: 'Frage', g: 'die', s: 'e' },
   // -in: назва особи жіночого роду → die (патерн /[^e]in$/ — -ein не матчить)
   { w: 'Freundin', g: 'die', s: 'in' },
   { w: 'Lehrerin', g: 'die', s: 'in' },
@@ -90,7 +72,6 @@ export default [
   { w: 'Drucker', g: 'der', s: 'er' },
   { w: 'Spieler', g: 'der', s: 'er' },
   { w: 'Verkäufer', g: 'der', s: 'er' },
-  { w: 'Arbeiter', g: 'der', s: 'er' },
   // -ling: особа/істота → der
   { w: 'Liebling', g: 'der', s: 'ling' },
   { w: 'Zwilling', g: 'der', s: 'ling' },
@@ -172,6 +153,7 @@ export default [
   { w: 'Mantel', g: 'der' },
   { w: 'Rock', g: 'der', genEs: true },
   { w: 'Ball', g: 'der', genEs: true },
+  { w: 'Arbeiter', g: 'der', sq: 'er' },
   // die
   { w: 'Frau', g: 'die' },
   { w: 'Mutter', g: 'die' },
@@ -193,6 +175,28 @@ export default [
   { w: 'Musik', g: 'die' },
   { w: 'Party', g: 'die' },
   { w: 'Pizza', g: 'die' },
+  // sq: підпадають під сигнал, але не входять у трійку/сигнальну групу карти (перевищення ліміту).
+  // Правило на них діє — фідбек показує те саме правило, що й для сигнальних слів.
+  { w: 'Prüfung', g: 'die', sq: 'ung' },
+  { w: 'Erfahrung', g: 'die', sq: 'ung' },
+  { w: 'Einladung', g: 'die', sq: 'ung' },
+  { w: 'Sicherheit', g: 'die', sq: 'heit' },
+  { w: 'Position', g: 'die', sq: 'ion' },
+  { w: 'Region', g: 'die', sq: 'ion' },
+  { w: 'Station', g: 'die', sq: 'ion' },
+  { w: 'Funktion', g: 'die', sq: 'ion' },
+  { w: 'Nase', g: 'die', sq: 'e' },
+  { w: 'Erde', g: 'die', sq: 'e' },
+  { w: 'Stunde', g: 'die', sq: 'e' },
+  { w: 'Minute', g: 'die', sq: 'e' },
+  { w: 'Sprache', g: 'die', sq: 'e' },
+  { w: 'Reise', g: 'die', sq: 'e' },
+  { w: 'Tasche', g: 'die', sq: 'e' },
+  { w: 'Brille', g: 'die', sq: 'e' },
+  { w: 'Klasse', g: 'die', sq: 'e' },
+  { w: 'Familie', g: 'die', sq: 'e' },
+  { w: 'Seite', g: 'die', sq: 'e' },
+  { w: 'Adresse', g: 'die', sq: 'e' },
   // das
   { w: 'Kind', g: 'das', genEs: true },
   { w: 'Baby', g: 'das' },
