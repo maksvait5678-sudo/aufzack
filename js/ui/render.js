@@ -4,7 +4,8 @@ import { t } from '../i18n/index.js';
 
 const rowOf = (topic, k) => topic.matrix.rows.find(r => r.k === k);
 const colOf = (topic, k) => topic.matrix.cols.find(c => c.k === k);
-const rowLabel = (topic, k) => rowOf(topic, k).label;
+// Мітка рядка: німецька — інлайн (artikel), українська — з lang (genus-групи).
+const rowLabel = (topic, k) => { const r = rowOf(topic, k); return r.label ?? t(`topics.${topic.id}.groups.${k}.label`); };
 const colLabel = (topic, k) => colOf(topic, k).label;
 const color = (topic, a) => topic.colors[a];
 
@@ -95,11 +96,11 @@ export function showChoiceFeedback(cardEl, topic, card, chosen, ms, fast, ok, on
     const rl = rowLabel(topic, card.cell.row);
     if (ok) {
       cardEl.classList.add('flash-ok');
-      fb.innerHTML = `<div class="fb-line"><span class="fb-text ok">Так, ${card.answer} ${card.prompt} · ${sec} с${fast ? '' : ' — повільно, повторимо скоріше'}</span><span class="hint">${rl}</span></div>${whyHtml}`;
+      fb.innerHTML = `<div class="fb-line"><span class="fb-text ok">${t('ui.fb.correctNoun', { a: card.answer, w: card.prompt, sec })}${fast ? '' : t('ui.fb.slowRetry')}</span><span class="hint">${rl}</span></div>${whyHtml}`;
       fb.classList.add('show');
     } else {
       cardEl.classList.add('flash-bad');
-      fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">Ні: ${card.answer} ${card.prompt}</span><span class="hint">${rl}</span></div>${whyHtml}<div style="display:flex;justify-content:flex-end"><button class="btn" id="nextBtn">Далі <small style="opacity:.6">(Enter)</small></button></div>`;
+      fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">${t('ui.fb.wrongNoun', { a: card.answer, w: card.prompt })}</span><span class="hint">${rl}</span></div>${whyHtml}<div style="display:flex;justify-content:flex-end"><button class="btn" id="nextBtn">${t('ui.card.next')} <small style="opacity:.6">${t('ui.card.enter')}</small></button></div>`;
       fb.classList.add('show');
       const nb = document.getElementById('nextBtn');
       nb.addEventListener('click', onNext);

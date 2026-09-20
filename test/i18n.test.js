@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import uk from '../js/i18n/uk.js';
 import artikel from '../js/topics/artikel.js';
+import genus from '../js/topics/genus.js';
 
 const get = (dict, path) => String(path).split('.').reduce((o, k) => (o == null ? undefined : o[k]), dict);
 const has = path => typeof get(uk, path) === 'string';
@@ -42,4 +43,26 @@ test('i18n: у темі artikel немає захардкодженого тек
   assert.equal(artikel.title, undefined);
   assert.equal(artikel.subtitle, undefined);
   assert.equal(artikel.blurb, undefined);
+});
+
+test('i18n: тексти теми genus присутні (title/kind/групи)', () => {
+  for (const k of ['title', 'subtitle', 'blurb', 'kind']) assert.ok(has(`topics.genus.${k}`), `нема topics.genus.${k}`);
+  for (const row of genus.matrix.rows) {
+    assert.ok(has(`topics.genus.groups.${row.k}.label`), `нема групи ${row.k}.label`);
+    assert.ok(has(`topics.genus.groups.${row.k}.hint`), `нема групи ${row.k}.hint`);
+  }
+});
+
+test('i18n: усі ключі kind/why карток genus існують у uk', () => {
+  for (const c of genus.cards) {
+    assert.ok(has(c.kind), `нема ${c.kind} (картка ${c.id})`);
+    assert.ok(has(c.why), `нема ${c.why} (картка ${c.id})`);
+  }
+});
+
+test('i18n: у темі genus немає захардкодженого тексту UI', () => {
+  assert.equal(genus.title, undefined);
+  assert.equal(genus.subtitle, undefined);
+  assert.equal(genus.blurb, undefined);
+  for (const row of genus.matrix.rows) assert.equal(row.label, undefined);
 });
