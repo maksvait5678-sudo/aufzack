@@ -13,7 +13,8 @@ export const SIGNAL_GENDER = {
 };
 
 // Правила семантичні (не «рядок → рід»), щоб учень не зламався на der Baum, der Kuchen.
-const SIGNAL_WHY = {
+// Експортовано для genus-review.html (звірка правил учителем).
+export const SIGNAL_WHY = {
   ung: '-ung від дієслова (дія/процес) → die',
   heit: 'абстрактна якість на -heit → die',
   keit: 'абстрактна якість на -keit → die',
