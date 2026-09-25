@@ -45,14 +45,19 @@ test('genus data: sx — справжній семантичний винято�
   }
 });
 
-test('genus data: collide — прихований збіг (матчить патерн, інший рід, не показується)', () => {
+test('genus data: collide — прихований збіг (поверхнево на суфікс, інший рід, не показується)', () => {
   for (const d of play) {
     if (!d.collide) continue;
     assert.ok(SIGNAL_GENDER[d.collide], `невідомий collide ${d.collide} у ${d.w}`);
     assert.notEqual(d.g, SIGNAL_GENDER[d.collide], `${d.w}: collide, але рід збігається із сигналом`);
-    if (SCAN[d.collide]) assert.ok(SCAN[d.collide].test(d.w), `${d.w}: collide=${d.collide}, але не матчить патерн`);
+    // Поверхневий збіг: слово закінчується на літери сигналу (вужчий скан їх навмисно не ловить).
+    assert.ok(d.w.toLowerCase().endsWith(d.collide), `${d.w}: collide=${d.collide}, але не закінчується на -${d.collide}`);
     assert.equal(d.sx, undefined, `${d.w}: sx і collide взаємовиключні`);
   }
+});
+
+test('genus data: weak-слово не має genEs (n-Deklination дає -en, не -es)', () => {
+  for (const d of play) if (d.weak) assert.ok(!d.genEs, `${d.w}: weak і genEs суперечать (des ...en, не -es)`);
 });
 
 test('genus data: sq відповідає роду і не поєднується з s', () => {
