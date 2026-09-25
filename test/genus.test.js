@@ -135,6 +135,36 @@ test('genus topic: todo не в грі; кожна картка має cell/answ
   }
 });
 
+// ── Порядок введення нових карток (проти «49 die підряд» на старті колоди) ──
+
+test('genus порядок: не більше 2 підряд з однаковою відповіддю', () => {
+  const a = genus.cards.map(c => c.answer);
+  for (let i = 2; i < a.length; i++) {
+    assert.ok(!(a[i] === a[i - 1] && a[i] === a[i - 2]),
+      `три однакові підряд (${a[i]}) на позиції ${i}: ...${a.slice(i - 2, i + 1).join(' ')}`);
+  }
+});
+
+test('genus порядок: у КОЖНОМУ вікні з 10 присутні всі три роди (до кінця колоди)', () => {
+  const a = genus.cards.map(c => c.answer);
+  assert.ok(a.length >= 10);
+  // Перебираємо всі вікна, включно з останнім, — die (78) не має виродити хвіст у одну кнопку.
+  for (let i = 0; i + 10 <= a.length; i++) {
+    const win = new Set(a.slice(i, i + 10));
+    for (const g of GENDERS) {
+      assert.ok(win.has(g), `вікно [${i}..${i + 9}] без роду ${g}: ${a.slice(i, i + 10).join(' ')}`);
+    }
+  }
+});
+
+test('genus порядок: слова «без правила» вплетені в першу половину (не тільки в хвіст)', () => {
+  // s-слова (сигнальні групи) не мають бути всі спереду: у першій половині мають бути й слова без s.
+  const half = genus.cards.slice(0, Math.floor(genus.cards.length / 2));
+  const noSignal = half.filter(c => c.why.startsWith('Немає сигналу')).length;
+  assert.ok(noSignal > 0, 'у першій половині колоди немає жодного слова без сигналу');
+  console.log(`  genus порядок: перші 15 відповідей — ${genus.cards.slice(0, 15).map(c => c.answer).join(' ')}`);
+});
+
 test('genus data: пропорція (друк, не умова падіння)', () => {
   const s = play.filter(d => d.s).length;
   const sq = play.filter(d => d.sq).length;
