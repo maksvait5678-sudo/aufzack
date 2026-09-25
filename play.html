@@ -266,8 +266,9 @@ bindKeyboard({
   // Двокрокова картка: на кроці 1 діють цифри Wo?/Wohin?, на кроці 2 — артиклі.
   getAnswers: () => {
     const cur = session.cur;
-    if (cur && cur.card.type === 'twostep' && ts && ts.phase === 'step1') return cur.card.step1.options;
-    return topic.answers;
+    if (!cur) return topic.answers;
+    if (cur.card.type === 'twostep' && ts && ts.phase === 'step1') return cur.card.step1.options;
+    return cur.card.options || topic.answers;   // choice з власними кнопками (прийменники)
   },
   onChoose,
   onCheck: checkRev,
