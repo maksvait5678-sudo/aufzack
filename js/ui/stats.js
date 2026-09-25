@@ -1,4 +1,6 @@
-// Чотири лічильники над карткою.
+// Чотири лічильники над карткою. Статичні підписи — через data-i18n у HTML;
+// динамічний підпис серії (з рекордом) — через t().
+import { t } from '../i18n/index.js';
 
 export function renderStats(els, topic, data, now = Date.now()) {
   const st = id => data.cards[id];
@@ -9,7 +11,7 @@ export function renderStats(els, topic, data, now = Date.now()) {
   els.due.textContent = due + notIntro;
   els.learned.textContent = `${intro.filter(c => st(c.id).b >= 3).length}/${topic.cards.length}`;
   els.streak.textContent = data.streak;
-  els.best.textContent = data.best;
+  els.streakLabel.textContent = t('ui.play.statStreak', { best: data.best });
   const d = new Date(now).toDateString();
   els.today.textContent = data.today.d === d ? data.today.n : 0;
 }
