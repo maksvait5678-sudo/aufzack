@@ -38,7 +38,9 @@ function revGrid(topic, card) {
 }
 
 function miniTable(topic, target, chosen) {
-  let h = `<div class="mini"><div class="h"></div>${topic.matrix.cols.map(g => `<div class="h">${g.label}</div>`).join('')}`;
+  // --mini-cols підганяє сітку під кількість родів теми (artikel — 4, wechsel — 3),
+  // інакше на вузькому екрані клітинки й підписи рядків з'їжджають у чужі колонки.
+  let h = `<div class="mini" style="--mini-cols:${topic.matrix.cols.length}"><div class="h"></div>${topic.matrix.cols.map(g => `<div class="h">${g.label}</div>`).join('')}`;
   topic.matrix.rows.forEach(cs => {
     h += `<div class="h" style="text-align:right">${cs.label}</div>`;
     topic.matrix.cols.forEach(g => {
@@ -229,7 +231,9 @@ export function renderDone(cardEl, data, cardsCount, onDrill) {
   const ds = Object.values(data.cards).map(s => s.due);
   const nxt = ds.length ? Math.min(...ds) - Date.now() : 0;
   const intro = Object.keys(data.cards).length;
-  cardEl.innerHTML = `<div class="done"><div class="big">Готово</div><p>${intro ? `Усе, що мало бути повторено, повторено. Наступне повторення — через ${fmt(Math.max(nxt, 0))}. Між сесіями грай у профілактику: помилки там повертають картку в чергу.` : 'Натисни «Навчання», щоб почати.'}</p><button class="btn" id="goDrill">Профілактика</button></div>`;
+  // Менше за хвилину — не показуємо секунди («через 4 с» виглядає як помилка), кажемо «зовсім скоро».
+  const whenNext = Math.max(nxt, 0) < 60e3 ? 'зовсім скоро' : `через ${fmt(nxt)}`;
+  cardEl.innerHTML = `<div class="done"><div class="big">Готово</div><p>${intro ? `Усе, що мало бути повторено, повторено. Наступне повторення — ${whenNext}. Між сесіями грай у профілактику: помилки там повертають картку в чергу.` : 'Натисни «Навчання», щоб почати.'}</p><button class="btn" id="goDrill">Профілактика</button></div>`;
   document.getElementById('goDrill').addEventListener('click', onDrill);
 }
 
