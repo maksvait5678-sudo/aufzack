@@ -105,6 +105,26 @@ test('pick: виключає останню показану картку (recN=
   assert.equal(r.card.id, 'c1');
 });
 
+// Перемежування має бути властивістю ЖИВОЇ черги, не лише масиву введення:
+// без цього користувач зі старим прогресом отримував серію 61 die підряд.
+const adeck = arr => arr.map((a, i) => ({ id: 'c' + i, type: 'choice', answer: a }));
+
+test('pick: після die,die бере іншу відповідь, якщо така є в пулі', () => {
+  const cards = adeck(['die', 'die', 'der']);
+  const states = { c0: s(0, 0), c1: s(0, 100), c2: s(0, 200) };
+  // recN=1 при малій колоді → з rec виключається лише c1; у пулі лишаються c0(die), c2(der).
+  const r = pick(cards, states, { mode: 'learn', recent: ['c0', 'c1'], now: 1000 });
+  assert.equal(r.card.answer, 'der', 'дві die поспіль → далі інша відповідь');
+  assert.equal(r.card.id, 'c2');
+});
+
+test('pick: якщо всі кандидати з тією ж відповіддю — лишає найтерміновішого', () => {
+  const cards = adeck(['die', 'die', 'die']);
+  const states = { c0: s(0, 0), c1: s(0, 100), c2: s(0, 200) };
+  const r = pick(cards, states, { mode: 'learn', recent: ['c0', 'c1'], now: 1000 });
+  assert.ok(r && r.card.answer === 'die'); // альтернативи немає — показуємо, що є, без зациклення
+});
+
 test('pick: нова картка, поки в роботі менше 6', () => {
   const cards = deck(8);
   const states = { c0: s(5, 9e9) }; // введена, не в роботі, не прострочена

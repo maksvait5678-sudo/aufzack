@@ -82,6 +82,17 @@ export function pick(cards, states, { mode, recent, now, rng = Math.random }) {
   const nr = c => !rec.includes(c.id);
   const byUrg = (a, b) => (st(a.id).b - st(b.id).b) || (st(a.id).due - st(b.id).due);
 
+  // Перемежування — властивість ЖИВОЇ черги, не лише масиву введення. Прострочені картки
+  // сортуються за (рівень, due) і не дивляться на відповідь, тож у користувача зі старим
+  // прогресом однакові відповіді верталися пачками (серія 61 die підряд). Серед відсортованих
+  // кандидатів беремо першого, чия відповідь не дасть 3-ю підряд однакову; якщо різних немає —
+  // лишаємо найтерміновішого (порядок рівня/due не порушуємо, коли альтернативи бракує).
+  const answerOf = id => { const c = cards.find(x => x.id === id); return c && c.answer; };
+  const last2 = recent.slice(-2).map(answerOf);
+  const clustered = last2.length === 2 && last2[0] != null && last2[0] === last2[1];
+  const pickNoRun = sorted =>
+    (clustered && sorted.find(c => c.answer !== last2[0])) || sorted[0];
+
   if (mode === 'drill') {
     const pool = intro.filter(nr);
     if (!pool.length) return intro[0] ? { card: intro[0] } : null;
@@ -96,7 +107,7 @@ export function pick(cards, states, { mode, recent, now, rng = Math.random }) {
   // 1. Прострочені, крім останніх показаних; менший рівень → раніший due.
   const due = intro.filter(c => st(c.id).due <= now);
   const dueNr = due.filter(nr).sort(byUrg);
-  if (dueNr.length) return { card: dueNr[0] };
+  if (dueNr.length) return { card: pickNoRun(dueNr) };
 
   const learning = intro.filter(c => st(c.id).b <= 2);
   // У ліміт «6 у роботі» relearn-картки не рахуємо: інакше вони забивають ліміт і
@@ -108,12 +119,12 @@ export function pick(cards, states, { mode, recent, now, rng = Math.random }) {
   // 3. Дострокове повторення картки з рівнем ≤ 1, крім останніх показаних і крім relearn
   //    (дострокова поява ламала б 10-хвилинне рознесення relearn — глухий цикл без прогресу).
   const early = learning.filter(c => st(c.id).b <= 1 && nr(c) && !st(c.id).relearn).sort((a, b) => st(a.id).due - st(b.id).due);
-  if (early.length) return { card: early[0] };
+  if (early.length) return { card: pickNoRun(early) };
   // 4. Нова картка, навіть якщо ліміт у роботі перевищено.
   if (nextNew) return { card: nextNew, isNew: true };
   // 5. Найближча за due в роботі.
   const b2 = learning.filter(nr).sort((a, b) => st(a.id).due - st(b.id).due);
-  if (b2.length) return { card: b2[0] };
+  if (b2.length) return { card: pickNoRun(b2) };
   if (due.length) return { card: due.sort(byUrg)[0] };
   return null;
 }
