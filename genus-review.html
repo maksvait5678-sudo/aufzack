@@ -9,9 +9,21 @@
   body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; }
   h1 { font-size: 1.3rem; margin: 0 0 4px; }
   .note { color: #666; margin: 0 0 16px; max-width: 70ch; }
-  .summary { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0 0 20px; padding: 12px 14px; background: #f4f4f2; border-radius: 10px; }
+  .lang { display: flex; gap: 6px; align-items: center; margin: 0 0 14px; color: #666; font-size: .9rem; }
+  .lang button { font: inherit; padding: 4px 12px; border: 1px solid #ccc; background: Canvas; border-radius: 999px; cursor: pointer; color: inherit; }
+  .lang button[aria-pressed="true"] { background: #1c6b1c; border-color: #1c6b1c; color: #fff; }
+  .summary { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0 0 16px; padding: 12px 14px; background: #f4f4f2; border-radius: 10px; }
   .summary b { font-variant-numeric: tabular-nums; }
-  @media (prefers-color-scheme: dark) { .summary { background: #222; } .note { color: #999; } }
+  .rules { margin: 0 0 20px; padding: 12px 14px; background: #f4f4f2; border-radius: 10px; max-width: 80ch; }
+  .rules h2 { font-size: .95rem; margin: 0 0 8px; }
+  .rules ul { margin: 0; padding-left: 0; list-style: none; columns: 2; column-gap: 24px; }
+  .rules li { break-inside: avoid; margin: 0 0 4px; }
+  .rules code { font-weight: 700; }
+  @media (max-width: 620px) { .rules ul { columns: 1; } }
+  @media (prefers-color-scheme: dark) {
+    .summary, .rules { background: #222; } .note, .lang { color: #999; }
+    .lang button { border-color: #444; }
+  }
   table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
   th, td { text-align: left; padding: 5px 10px; border-bottom: 1px solid #ddd; white-space: nowrap; }
   @media (prefers-color-scheme: dark) { th, td { border-color: #333; } }
@@ -34,66 +46,134 @@
 </style>
 </head>
 <body>
-<h1>genus — перевірка даних для вчителя</h1>
-<p class="note">Кожен рядок — одне слово з <code>js/topics/genus.data.js</code>. Категорії:
-<b>s</b> — сигнальна група (карта засвоєння); <b>sq</b> — правило діє, але слово поза групою (перевищення ліміту);
-<b>sx</b> — реальний виняток (показується учневі); <b>collide</b> — орфографічний збіг без морфеми (учневі
-<b>не</b> показується); без правила — рід учиться напам'ять. Сортування — з урахуванням умлаутів
-(<code>localeCompare('de')</code>).</p>
+<div class="lang" id="lang"></div>
+<h1 id="title"></h1>
+<p class="note" id="note"></p>
 
 <div class="summary" id="summary"></div>
+<div class="rules" id="rules"></div>
 <table>
-  <thead><tr>
-    <th>Слово</th><th>Рід</th><th>Категорія</th><th>Сигнал</th><th>weak</th><th>genEs</th><th>pl</th>
-  </tr></thead>
+  <thead><tr id="head"></tr></thead>
   <tbody id="rows"></tbody>
 </table>
 
 <script type="module">
 import data from './js/topics/genus.data.js';
+import { SIGNAL_GENDER, SIGNAL_WHY } from './js/topics/genus.js';
 
-const CAT = {
-  s:       { cls: 'cat-s',    label: 'сигнальна група' },
-  sq:      { cls: 'cat-sq',   label: 'правило діє, поза групою' },
-  sx:      { cls: 'cat-sx',   label: 'виняток' },
-  collide: { cls: 'cat-coll', label: 'збіг літер (приховано)' },
-  none:    { cls: 'cat-none', label: 'без правила' }
+// Переклад лише інтерфейсу (підписи, категорії, пояснення правил). Німецькі слова не чіпаємо.
+const T = {
+  uk: {
+    htmlLang: 'uk',
+    title: 'genus — перевірка даних для вчителя',
+    note: `Кожен рядок — одне слово з <code>js/topics/genus.data.js</code>. Категорії: <b>s</b> — сигнальна група (карта засвоєння); <b>sq</b> — правило діє, але слово поза групою (перевищення ліміту); <b>sx</b> — реальний виняток (показується учневі); <b>collide</b> — орфографічний збіг без морфеми (учневі <b>не</b> показується); без правила — рід учиться напам'ять. Сортування — з урахуванням умлаутів (<code>localeCompare('de')</code>).`,
+    cols: ['Слово', 'Рід', 'Категорія', 'Сигнал', 'weak', 'genEs', 'pl'],
+    cat: { s: 'сигнальна група', sq: 'правило діє, поза групою', sx: 'виняток', collide: 'збіг літер (приховано)', none: 'без правила', todo: 'todo — у грі немає' },
+    rulesHead: 'Правила сигналів (why — те, що бачить учень):',
+    sumTotal: (n, m, k) => `Усього: <b>${n}</b> (у грі <b>${m}</b>, todo <b>${k}</b>)`,
+    sumCats: c => `Категорії: s <b>${c.s || 0}</b> · sq <b>${c.sq || 0}</b> · sx <b>${c.sx || 0}</b> · collide <b>${c.collide || 0}</b> · без правила <b>${c.none || 0}</b>`,
+    sumGender: g => `Рід (у грі): der <b>${g.der}</b> · die <b>${g.die}</b> · das <b>${g.das}</b>`,
+    sumMeta: (w, e, p) => `Метадані: weak <b>${w}</b> · genEs <b>${e}</b> · pl <b>${p}</b>`
+  },
+  de: {
+    htmlLang: 'de',
+    title: 'genus — Datenprüfung für Lehrkräfte',
+    note: `Jede Zeile ist ein Wort aus <code>js/topics/genus.data.js</code>. Kategorien: <b>s</b> — Signalgruppe (Lernkarte); <b>sq</b> — Regel gilt, aber Wort außerhalb der Gruppe (Limit überschritten); <b>sx</b> — echte Ausnahme (wird der lernenden Person gezeigt); <b>collide</b> — orthografischer Zufall ohne Morphem (wird <b>nicht</b> gezeigt); ohne Regel — Genus wird auswendig gelernt. Sortierung mit Umlauten (<code>localeCompare('de')</code>).`,
+    cols: ['Wort', 'Genus', 'Kategorie', 'Signal', 'weak', 'genEs', 'pl'],
+    cat: { s: 'Signalgruppe', sq: 'Regel gilt, außerhalb der Gruppe', sx: 'Ausnahme', collide: 'Buchstaben-Zufall (verborgen)', none: 'ohne Regel', todo: 'todo — nicht im Spiel' },
+    rulesHead: 'Signalregeln (why — was die lernende Person sieht):',
+    sumTotal: (n, m, k) => `Gesamt: <b>${n}</b> (im Spiel <b>${m}</b>, todo <b>${k}</b>)`,
+    sumCats: c => `Kategorien: s <b>${c.s || 0}</b> · sq <b>${c.sq || 0}</b> · sx <b>${c.sx || 0}</b> · collide <b>${c.collide || 0}</b> · ohne Regel <b>${c.none || 0}</b>`,
+    sumGender: g => `Genus (im Spiel): der <b>${g.der}</b> · die <b>${g.die}</b> · das <b>${g.das}</b>`,
+    sumMeta: (w, e, p) => `Metadaten: weak <b>${w}</b> · genEs <b>${e}</b> · pl <b>${p}</b>`
+  }
 };
+
+// Німецькі версії пояснень правил (why). Ключі — сигнали; uk-версія береться з SIGNAL_WHY.
+const WHY_DE = {
+  ung: '-ung von einem Verb (Handlung/Vorgang) → die',
+  heit: 'abstrakte Eigenschaft auf -heit → die',
+  keit: 'abstrakte Eigenschaft auf -keit → die',
+  schaft: '-schaft (Gemeinschaft/Zustand) → die',
+  ion: 'internationales Wort auf -ion → die',
+  e: 'unbetontes -e (Schwa) meist die',
+  in: 'weibliche Personenbezeichnung auf -in → die',
+  er: 'Verbstamm + -er (handelnde Person oder Werkzeug) → der',
+  ling: '-ling (Person/Lebewesen) → der',
+  semder: 'Wochentag, Monat oder Jahreszeit → der',
+  chen: 'Verkleinerung auf -chen → das',
+  um: 'lateinisches Lehnwort auf -um → das',
+  zeug: '-zeug (Mittel oder Werkzeug) → das'
+};
+const whyOf = (sig, lang) => (lang === 'de' ? WHY_DE : SIGNAL_WHY)[sig];
+
+const CAT_CLS = { s: 'cat-s', sq: 'cat-sq', sx: 'cat-sx', collide: 'cat-coll', none: 'cat-none', todo: 'cat-todo' };
 const catOf = d => d.todo ? 'todo' : d.s ? 's' : d.sq ? 'sq' : d.sx ? 'sx' : d.collide ? 'collide' : 'none';
 const sigOf = d => d.s || d.sq || d.sx || d.collide || '';
 
 // Сортування з урахуванням умлаутів (Ä біля A, а не між Rock і Salat).
 const rows = [...data].sort((a, b) => a.w.localeCompare(b.w, 'de'));
-
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-document.getElementById('rows').innerHTML = rows.map(d => {
-  const cat = catOf(d);
-  const c = cat === 'todo'
-    ? `<span class="cat cat-todo">todo — у грі немає</span>`
-    : `<span class="cat ${CAT[cat].cls}">${CAT[cat].label}</span>`;
-  return `<tr>
-    <td class="w">${esc(d.w)}</td>
-    <td class="g-${d.g}">${d.g}</td>
-    <td>${c}</td>
-    <td>${sigOf(d) ? '-' + esc(sigOf(d)) : '<span class="muted">—</span>'}</td>
-    <td class="flag">${d.weak ? (d.weak === 'mixed' ? 'mixed' : '✓') : '<span class="muted">—</span>'}</td>
-    <td class="flag">${d.genEs ? '✓' : '<span class="muted">—</span>'}</td>
-    <td class="flag">${d.pl ? esc(d.pl) : '<span class="muted">—</span>'}</td>
-  </tr>`;
-}).join('');
 
-// Підсумок: категорії, роди, метадані.
+// Підрахунки (не залежать від мови).
 const count = fn => data.filter(fn).length;
 const byCat = {};
 for (const d of data) { const k = catOf(d); byCat[k] = (byCat[k] || 0) + 1; }
 const byGender = { der: 0, die: 0, das: 0 };
 for (const d of data) if (!d.todo) byGender[d.g]++;
-document.getElementById('summary').innerHTML = [
-  `Усього: <b>${data.length}</b> (у грі <b>${count(d => !d.todo)}</b>, todo <b>${count(d => d.todo)}</b>)`,
-  `Категорії: s <b>${byCat.s || 0}</b> · sq <b>${byCat.sq || 0}</b> · sx <b>${byCat.sx || 0}</b> · collide <b>${byCat.collide || 0}</b> · без правила <b>${byCat.none || 0}</b>`,
-  `Рід (у грі): der <b>${byGender.der}</b> · die <b>${byGender.die}</b> · das <b>${byGender.das}</b>`,
-  `Метадані: weak <b>${count(d => d.weak)}</b> · genEs <b>${count(d => d.genEs)}</b> · pl <b>${count(d => d.pl)}</b>`
-].map(s => `<span>${s}</span>`).join('');
+
+function render(lang) {
+  const t = T[lang];
+  document.documentElement.lang = t.htmlLang;
+  document.title = t.title;
+  document.getElementById('title').textContent = t.title;
+  document.getElementById('note').innerHTML = t.note;
+
+  document.getElementById('head').innerHTML = t.cols.map(c => `<th>${c}</th>`).join('');
+
+  document.getElementById('rows').innerHTML = rows.map(d => {
+    const cat = catOf(d);
+    const c = `<span class="cat ${CAT_CLS[cat]}">${t.cat[cat]}</span>`;
+    return `<tr>
+      <td class="w">${esc(d.w)}</td>
+      <td class="g-${d.g}">${d.g}</td>
+      <td>${c}</td>
+      <td>${sigOf(d) ? '-' + esc(sigOf(d)) : '<span class="muted">—</span>'}</td>
+      <td class="flag">${d.weak ? (d.weak === 'mixed' ? 'mixed' : '✓') : '<span class="muted">—</span>'}</td>
+      <td class="flag">${d.genEs ? '✓' : '<span class="muted">—</span>'}</td>
+      <td class="flag">${d.pl ? esc(d.pl) : '<span class="muted">—</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('summary').innerHTML = [
+    t.sumTotal(data.length, count(d => !d.todo), count(d => d.todo)),
+    t.sumCats(byCat),
+    t.sumGender(byGender),
+    t.sumMeta(count(d => d.weak), count(d => d.genEs), count(d => d.pl))
+  ].map(s => `<span>${s}</span>`).join('');
+
+  document.getElementById('rules').innerHTML = `<h2>${t.rulesHead}</h2><ul>`
+    + Object.keys(SIGNAL_WHY).map(sig =>
+        `<li><code class="g-${SIGNAL_GENDER[sig]}">-${sig}</code> — ${esc(whyOf(sig, lang))}</li>`).join('')
+    + '</ul>';
+
+  document.querySelectorAll('#lang button').forEach(b => b.setAttribute('aria-pressed', b.dataset.l === lang));
+}
+
+// Мова — у параметрі адреси (?lang=de), щоб можна було дати посилання одразу німецькою.
+function currentLang() { return new URLSearchParams(location.search).get('lang') === 'de' ? 'de' : 'uk'; }
+function setLang(lang) {
+  const u = new URL(location);
+  u.searchParams.set('lang', lang);
+  history.replaceState(null, '', u);
+  render(lang);
+}
+
+document.getElementById('lang').innerHTML = `<span>UK / DE:</span>`
+  + `<button type="button" data-l="uk">UK</button><button type="button" data-l="de">DE</button>`;
+document.querySelectorAll('#lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.l)));
+
+render(currentLang());
 </script>
 </body>
 </html>
