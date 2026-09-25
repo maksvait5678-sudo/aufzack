@@ -29,6 +29,7 @@
       </div>
       <div class="slogan">bis es sitzt</div>
     </div>
+    <div class="head-actions" id="headActions"></div>
   </header>
   <p class="intro">Зубріння німецької граматики через інтервальне повторення. Обери тему — прогрес зберігається в цьому браузері.</p>
   <div class="topics" id="topics"></div>
@@ -37,6 +38,9 @@
 <script type="module">
 import { topics } from './js/topics/index.js';
 import * as store from './js/engine/store.js';
+import { mountHelp } from './js/ui/help.js';
+
+mountHelp(document.getElementById('headActions'));
 
 function topicStats(topic) {
   const data = store.getTopic(topic.id);
