@@ -52,8 +52,49 @@ const whyOf = d => {
 // поки немає окремої теми про слабку відміну (SPEC).
 export const blockedFromArticleGap = entry => !!entry.weak;
 
-// Картки в порядку введення (як у даних). todo-слова у гру не потрапляють.
-const cards = data.filter(d => !d.todo).map(d => ({
+// Рівномірне перемежовування кількох черг (Брезенгем): на кожному кроці беремо з тієї
+// черги, що найбільше відстала від своєї частки. Порядок усередині кожної черги збережено.
+// avoid(candidate, out) — необовʼязкова заборона; якщо порушують усі кандидати, беремо
+// найкращого за дефіцитом (щоб не зациклитись). Детерміновано, без RNG — тестовно.
+function interleave(queues, avoid) {
+  const qs = queues.filter(q => q.length);
+  const total = qs.reduce((s, q) => s + q.length, 0);
+  const n = qs.map(q => q.length);
+  const done = qs.map(() => 0);
+  const out = [];
+  while (out.length < total) {
+    const t = out.length + 1;
+    const order = qs
+      .map((_, i) => ({ i, deficit: t * n[i] / total - done[i], left: n[i] - done[i] }))
+      .filter(c => c.left > 0)
+      .sort((a, b) => b.deficit - a.deficit || b.left - a.left);
+    const ok = avoid && order.find(c => !avoid(qs[c.i][done[c.i]], out));
+    const pick = ok || order[0];
+    out.push(qs[pick.i][done[pick.i]]);
+    done[pick.i]++;
+  }
+  return out;
+}
+
+// Порядок введення нових карток. Дані згруповані за сигналом (для вчителя), тож у файлі
+// перші ~50 слів — підряд die: учень тисне одну кнопку, не знаючи слів. Тут перемежовуємо:
+//   1) всередині роду — сигнальні (s) зі рештою, щоб слова «без правила» йшли з самого
+//      початку, а не після всіх сигналів (інакше перша половина колоди вгадується);
+//   2) між родами — рівномірно (die ~40%, але рознесено), із твердою забороною третьої
+//      однакової відповіді підряд. Пропорційне перемежовування вичерпує всі три роди
+//      одночасно, тож хвіст не вироджується в одну кнопку (die 78 vs das 56).
+const orderForIntro = list => {
+  const within = g => {
+    const g_ = list.filter(d => d.g === g);
+    return interleave([g_.filter(d => d.s), g_.filter(d => !d.s)]);
+  };
+  const avoid = (card, out) => out.length >= 2 &&
+    out[out.length - 1].g === card.g && out[out.length - 2].g === card.g;
+  return interleave([within('der'), within('die'), within('das')], avoid);
+};
+
+// Картки в порядку введення (перемежованому). todo-слова у гру не потрапляють.
+const cards = orderForIntro(data.filter(d => !d.todo)).map(d => ({
   id: `g-${d.w}`,
   type: 'choice',
   kind: 'Який рід?',
@@ -64,9 +105,10 @@ const cards = data.filter(d => !d.todo).map(d => ({
   why: whyOf(d)
 }));
 
-// Лого теми — три пігулки родів (матеріал теми — самі der/die/das).
-const logo = ['der', 'die', 'das']
-  .map(a => `<span class="tl-pill" style="background:${COLORS[a]}">${a}</span>`).join('');
+// Лого теми — слово + три пігулки родів (матеріал теми — самі der/die/das), за зразком artikel.
+const logo = `<span class="tl-word">Genus</span>` +
+  ['der', 'die', 'das']
+    .map(a => `<span class="tl-pill" style="background:${COLORS[a]}">${a}</span>`).join('');
 
 export default {
   id: 'genus',
