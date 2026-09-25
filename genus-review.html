@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>genus — перевірка даних</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .note { color: #666; margin: 0 0 16px; max-width: 70ch; }
+  .summary { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0 0 20px; padding: 12px 14px; background: #f4f4f2; border-radius: 10px; }
+  .summary b { font-variant-numeric: tabular-nums; }
+  @media (prefers-color-scheme: dark) { .summary { background: #222; } .note { color: #999; } }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 5px 10px; border-bottom: 1px solid #ddd; white-space: nowrap; }
+  @media (prefers-color-scheme: dark) { th, td { border-color: #333; } }
+  th { position: sticky; top: 0; background: Canvas; cursor: default; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; color: #666; }
+  .w { font-weight: 700; font-size: 1.05rem; }
+  .g-der { color: #1479a8; } .g-die { color: #6a9a10; } .g-das { color: #777; }
+  .cat { font-size: .82rem; padding: 1px 8px; border-radius: 999px; }
+  .cat-s   { background: #d8f0d8; color: #1c6b1c; }
+  .cat-sq  { background: #d6e6fb; color: #1a4f8f; }
+  .cat-sx  { background: #fbe0d0; color: #9c4a10; }
+  .cat-coll{ background: #e8e8e8; color: #555; }
+  .cat-none{ background: transparent; color: #999; }
+  .cat-todo{ background: #fde2e2; color: #a33; }
+  @media (prefers-color-scheme: dark) {
+    .cat-s{background:#1f3a1f;color:#8fd68f} .cat-sq{background:#1c3350;color:#8fbdf0}
+    .cat-sx{background:#4a2c12;color:#e0a878} .cat-coll{background:#333;color:#aaa} .cat-todo{background:#4a1f1f;color:#e59}
+  }
+  td.flag { text-align: center; color: #1c6b1c; }
+  .muted { color: #bbb; }
+</style>
+</head>
+<body>
+<h1>genus — перевірка даних для вчителя</h1>
+<p class="note">Кожен рядок — одне слово з <code>js/topics/genus.data.js</code>. Категорії:
+<b>s</b> — сигнальна група (карта засвоєння); <b>sq</b> — правило діє, але слово поза групою (перевищення ліміту);
+<b>sx</b> — реальний виняток (показується учневі); <b>collide</b> — орфографічний збіг без морфеми (учневі
+<b>не</b> показується); без правила — рід учиться напам'ять. Сортування — з урахуванням умлаутів
+(<code>localeCompare('de')</code>).</p>
+
+<div class="summary" id="summary"></div>
+<table>
+  <thead><tr>
+    <th>Слово</th><th>Рід</th><th>Категорія</th><th>Сигнал</th><th>weak</th><th>genEs</th><th>pl</th>
+  </tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<script type="module">
+import data from './js/topics/genus.data.js';
+
+const CAT = {
+  s:       { cls: 'cat-s',    label: 'сигнальна група' },
+  sq:      { cls: 'cat-sq',   label: 'правило діє, поза групою' },
+  sx:      { cls: 'cat-sx',   label: 'виняток' },
+  collide: { cls: 'cat-coll', label: 'збіг літер (приховано)' },
+  none:    { cls: 'cat-none', label: 'без правила' }
+};
+const catOf = d => d.todo ? 'todo' : d.s ? 's' : d.sq ? 'sq' : d.sx ? 'sx' : d.collide ? 'collide' : 'none';
+const sigOf = d => d.s || d.sq || d.sx || d.collide || '';
+
+// Сортування з урахуванням умлаутів (Ä біля A, а не між Rock і Salat).
+const rows = [...data].sort((a, b) => a.w.localeCompare(b.w, 'de'));
+
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+document.getElementById('rows').innerHTML = rows.map(d => {
+  const cat = catOf(d);
+  const c = cat === 'todo'
+    ? `<span class="cat cat-todo">todo — у грі немає</span>`
+    : `<span class="cat ${CAT[cat].cls}">${CAT[cat].label}</span>`;
+  return `<tr>
+    <td class="w">${esc(d.w)}</td>
+    <td class="g-${d.g}">${d.g}</td>
+    <td>${c}</td>
+    <td>${sigOf(d) ? '-' + esc(sigOf(d)) : '<span class="muted">—</span>'}</td>
+    <td class="flag">${d.weak ? (d.weak === 'mixed' ? 'mixed' : '✓') : '<span class="muted">—</span>'}</td>
+    <td class="flag">${d.genEs ? '✓' : '<span class="muted">—</span>'}</td>
+    <td class="flag">${d.pl ? esc(d.pl) : '<span class="muted">—</span>'}</td>
+  </tr>`;
+}).join('');
+
+// Підсумок: категорії, роди, метадані.
+const count = fn => data.filter(fn).length;
+const byCat = {};
+for (const d of data) { const k = catOf(d); byCat[k] = (byCat[k] || 0) + 1; }
+const byGender = { der: 0, die: 0, das: 0 };
+for (const d of data) if (!d.todo) byGender[d.g]++;
+document.getElementById('summary').innerHTML = [
+  `Усього: <b>${data.length}</b> (у грі <b>${count(d => !d.todo)}</b>, todo <b>${count(d => d.todo)}</b>)`,
+  `Категорії: s <b>${byCat.s || 0}</b> · sq <b>${byCat.sq || 0}</b> · sx <b>${byCat.sx || 0}</b> · collide <b>${byCat.collide || 0}</b> · без правила <b>${byCat.none || 0}</b>`,
+  `Рід (у грі): der <b>${byGender.der}</b> · die <b>${byGender.die}</b> · das <b>${byGender.das}</b>`,
+  `Метадані: weak <b>${count(d => d.weak)}</b> · genEs <b>${count(d => d.genEs)}</b> · pl <b>${count(d => d.pl)}</b>`
+].map(s => `<span>${s}</span>`).join('');
+</script>
+</body>
+</html>

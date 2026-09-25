@@ -1,5 +1,7 @@
 // Дані теми «Рід іменників» — ДЛЯ ПЕРЕВІРКИ ВЧИТЕЛЕМ.
-// Формат: { w, g, s?, sq?, sx?, weak?, genEs?, pl?, todo? }
+// Формат: { w, g, s?, sq?, sx?, collide?, weak?, genEs?, pl?, todo? }
+//   collide — орфографічний збіг: слово матчить патерн сигналу, але БЕЗ його морфеми
+//         (Kuchen — не зменшувальне; Baum — не латинське). Учневі НЕ показується (напам'ять).
 //   w   — слово (Nominativ Singular).
 //   g   — рід: 'der' | 'die' | 'das'.
 //   s   — сигнал: слово входить у сигнальну групу карти засвоєння (ліміт: ≤5, для -e ≤8).
@@ -98,15 +100,21 @@ export default [
   { w: 'Spielzeug', g: 'das', s: 'zeug' },
   { w: 'Werkzeug', g: 'das', s: 'zeug' },
 
-  // ─── винятки (sx: слово матчить сигнал, але рід інший) ───────────
+  // ─── винятки (sx): слово РЕАЛЬНО підпадає під семантичний опис правила, але має
+  //     інший рід. За цим критерієм лишаються тільки -e-винятки: Ge-слова, слабкі
+  //     чоловіки, Auge, Ende. sx показується учневі («виняток з правила»).
   { w: 'Auge', g: 'das', sx: 'e' },
   { w: 'Ende', g: 'das', sx: 'e', genEs: true },
   { w: 'Käse', g: 'der', sx: 'e' },
   { w: 'Gemüse', g: 'das', sx: 'e' },
   { w: 'Junge', g: 'der', sx: 'e', weak: true },
   { w: 'Name', g: 'der', sx: 'e', weak: 'mixed' },
-  { w: 'Kuchen', g: 'der', sx: 'chen' },
-  { w: 'Baum', g: 'der', sx: 'um', genEs: true },
+
+  // ─── орфографічні збіги (collide): матчать патерн, але БЕЗ морфеми правила.
+  //     Приховане поле (учневі НЕ показується — інакше вчили б правило про рядок,
+  //     а не про морфему); рід учиться напам'ять.
+  { w: 'Kuchen', g: 'der', collide: 'chen' },          // немає зменшувального суфікса
+  { w: 'Baum', g: 'der', collide: 'um', genEs: true }, // немає латинського -um
 
   // ─── без сигналу: рід учиться напам'ять ──────────────────────────
   // der
@@ -138,6 +146,7 @@ export default [
   { w: 'Tee', g: 'der' },
   { w: 'Wein', g: 'der', genEs: true },
   { w: 'Salat', g: 'der' },
+  { w: 'Apfel', g: 'der' },
   { w: 'Kopf', g: 'der', genEs: true },
   { w: 'Arm', g: 'der', genEs: true },
   { w: 'Fuß', g: 'der', genEs: true },
@@ -197,6 +206,9 @@ export default [
   { w: 'Familie', g: 'die', sq: 'e' },
   { w: 'Seite', g: 'die', sq: 'e' },
   { w: 'Adresse', g: 'die', sq: 'e' },
+  { w: 'Tomate', g: 'die', sq: 'e' },
+  { w: 'Hose', g: 'die', sq: 'e' },
+  { w: 'Jacke', g: 'die', sq: 'e' },
   // das
   { w: 'Kind', g: 'das', genEs: true },
   { w: 'Baby', g: 'das' },
@@ -216,6 +228,7 @@ export default [
   { w: 'Geld', g: 'das', genEs: true },
   { w: 'Wasser', g: 'das' },
   { w: 'Brot', g: 'das', genEs: true },
+  { w: 'Ei', g: 'das' },
   { w: 'Fleisch', g: 'das', genEs: true },
   { w: 'Obst', g: 'das', genEs: true },
   { w: 'Bier', g: 'das' },

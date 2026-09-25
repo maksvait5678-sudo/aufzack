@@ -30,12 +30,28 @@ test('genus data: сигнал s відповідає роду', () => {
   }
 });
 
-test('genus data: sx — справжній виняток (матчить патерн, інший рід)', () => {
+// Сигнали, у яких у цій колоді є РЕАЛЬНІ семантичні винятки (слово має морфему правила,
+// але інший рід). Лише -e (Ge-слова, слабкі чоловіки, Auge, Ende). Орфографічні збіги
+// без морфеми (Kuchen, Baum) позначаються collide, а не sx (див. SPEC-критерій).
+const REAL_EXC = ['e'];
+
+test('genus data: sx — справжній семантичний виняток (лише дозволені сигнали)', () => {
   for (const d of play) {
     if (!d.sx) continue;
     assert.ok(SIGNAL_GENDER[d.sx], `невідомий sx ${d.sx} у ${d.w}`);
     assert.notEqual(d.g, SIGNAL_GENDER[d.sx], `${d.w}: sx=${d.sx}, але рід збігається із сигналом`);
     if (SCAN[d.sx]) assert.ok(SCAN[d.sx].test(d.w), `${d.w}: sx=${d.sx}, але слово не матчить патерн`);
+    assert.ok(REAL_EXC.includes(d.sx), `${d.w}: sx=${d.sx} — цей сигнал не має реальних винятків; це collide, не sx`);
+  }
+});
+
+test('genus data: collide — прихований збіг (матчить патерн, інший рід, не показується)', () => {
+  for (const d of play) {
+    if (!d.collide) continue;
+    assert.ok(SIGNAL_GENDER[d.collide], `невідомий collide ${d.collide} у ${d.w}`);
+    assert.notEqual(d.g, SIGNAL_GENDER[d.collide], `${d.w}: collide, але рід збігається із сигналом`);
+    if (SCAN[d.collide]) assert.ok(SCAN[d.collide].test(d.w), `${d.w}: collide=${d.collide}, але не матчить патерн`);
+    assert.equal(d.sx, undefined, `${d.w}: sx і collide взаємовиключні`);
   }
 });
 
@@ -48,24 +64,24 @@ test('genus data: sq відповідає роду і не поєднуєтьс�
   }
 });
 
-test('genus data: слово на відомий суфікс має s, sq або sx (нема безправильних)', () => {
+test('genus data: слово на відомий суфікс завжди позначене (s/sq/sx/collide)', () => {
   for (const sig of Object.keys(SCAN)) {
     const P = SCAN[sig];
     for (const d of play) {
       if (!P.test(d.w)) continue;
-      assert.ok(d.s || d.sq || d.sx, `${d.w} закінчується на відомий суфікс, але без s/sq/sx`);
+      assert.ok(d.s || d.sq || d.sx || d.collide, `${d.w} закінчується на відомий суфікс, але без s/sq/sx/collide`);
     }
   }
 });
 
-test('genus data: посигнальний скан — кожен невизнаний виняток позначено sx', () => {
-  // Слово того ж роду, що й сигнал, — консистентне (може мати s-підказку або бути лексикою
-  // без сигналу за ліміт-правилом). Слово ІНШОГО роду, що матчить патерн, — обов'язково sx.
+test('genus data: посигнальний скан — інший рід позначено sx (виняток) або collide (збіг)', () => {
+  // Слово того ж роду, що й сигнал, — консистентне (s/sq-підказка або лексика поза групою).
+  // Слово ІНШОГО роду, що матчить патерн, — обов'язково sx (реальний виняток) або collide (збіг).
   for (const sig of Object.keys(SCAN)) {
     const P = SCAN[sig], G = SIGNAL_GENDER[sig];
     for (const d of play) {
       if (!P.test(d.w)) continue;
-      if (d.g !== G) assert.equal(d.sx, sig, `${d.w} (${d.g}) матчить -${sig}, але не позначене sx:${sig}`);
+      if (d.g !== G) assert.ok(d.sx === sig || d.collide === sig, `${d.w} (${d.g}) матчить -${sig}, але не позначене sx/collide:${sig}`);
     }
   }
 });
