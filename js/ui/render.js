@@ -12,7 +12,8 @@ function genderChip(topic, card) {
 }
 
 function pills(topic) {
-  return `<div class="answers">${topic.answers
+  // --ans-cols підганяє сітку під кількість кнопок (3 для genus, 6 для artikel).
+  return `<div class="answers" style="--ans-cols:${topic.answers.length}">${topic.answers
     .map((a, i) => `<button class="pill" data-a="${a}" style="background:${color(topic, a)}"><kbd>${i + 1}</kbd>${a}</button>`)
     .join('')}</div>`;
 }
@@ -51,9 +52,11 @@ export function renderCard(cardEl, topic, cur, cardState, handlers) {
     ? '<span class="badge new">нова</span>'
     : (cardState ? `<span class="badge">рівень ${cardState.b}</span>` : '');
 
+  // Тема може вимкнути чип-рід (genus: рід і є відповіддю — не підказувати).
+  const chip = topic.showChip === false ? '' : genderChip(topic, c);
   let body = '';
-  if (c.type === 'choice') body = `<div class="big">${c.prompt}</div>${genderChip(topic, c)}`;
-  if (c.type === 'sentence') body = `<div class="sentence">${c.prompt.replace('___', '<span class="blank" id="blank">&nbsp;</span>')}</div>${genderChip(topic, c)}`;
+  if (c.type === 'choice') body = `<div class="big" lang="de">${c.prompt}</div>${chip}`;
+  if (c.type === 'sentence') body = `<div class="sentence" lang="de">${c.prompt.replace('___', '<span class="blank" id="blank">&nbsp;</span>')}</div>${chip}`;
   if (c.type === 'grid') body = `<div class="big" style="background:${color(topic, c.answer)};color:var(--pill-ink);padding:6px 26px;border-radius:22px">${c.answer}</div><div class="hint">Познач усі клітинки таблиці з цим артиклем</div>${revGrid(topic, c)}`;
 
   const ans = c.type === 'grid'
@@ -83,10 +86,29 @@ export function showChoiceFeedback(cardEl, topic, card, chosen, ms, fast, ok, on
   if (blank) { blank.textContent = card.answer; blank.style.background = color(topic, card.answer); }
 
   const fb = document.getElementById('fb');
-  const qline = card.ask ? ` — ${card.ask}` : ` — ${rowOf(topic, card.cell.row).hint}`;
   const sec = (ms / 1000).toFixed(1);
-  const rl = rowLabel(topic, card.cell.row), cl = colLabel(topic, card.cell.col);
   const whyHtml = card.why ? `<div class="why">${card.why}</div>` : '';
+
+  // Теми без чипа (genus): відповідь показуємо як «die Tür», без сітки-міні-таблиці.
+  if (topic.showChip === false) {
+    const rl = rowLabel(topic, card.cell.row);
+    if (ok) {
+      cardEl.classList.add('flash-ok');
+      fb.innerHTML = `<div class="fb-line"><span class="fb-text ok">Так, ${card.answer} ${card.prompt} · ${sec} с${fast ? '' : ' — повільно, повторимо скоріше'}</span><span class="hint">${rl}</span></div>${whyHtml}`;
+      fb.classList.add('show');
+    } else {
+      cardEl.classList.add('flash-bad');
+      fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">Ні: ${card.answer} ${card.prompt}</span><span class="hint">${rl}</span></div>${whyHtml}<div style="display:flex;justify-content:flex-end"><button class="btn" id="nextBtn">Далі <small style="opacity:.6">(Enter)</small></button></div>`;
+      fb.classList.add('show');
+      const nb = document.getElementById('nextBtn');
+      nb.addEventListener('click', onNext);
+      nb.focus();
+    }
+    return;
+  }
+
+  const qline = card.ask ? ` — ${card.ask}` : ` — ${rowOf(topic, card.cell.row).hint}`;
+  const rl = rowLabel(topic, card.cell.row), cl = colLabel(topic, card.cell.col);
 
   if (ok) {
     cardEl.classList.add('flash-ok');
