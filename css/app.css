@@ -76,6 +76,9 @@ header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:s
 .pill.right{outline:3px solid var(--good);outline-offset:2px;opacity:1}
 .pill.wrong{outline:3px solid var(--bad);outline-offset:2px;opacity:1}
 .pill:disabled{cursor:default}
+/* Кнопки кроку 1 двокрокової картки — нейтральні (не кольори артиклів) */
+.pill.plain{background:var(--surface2);color:var(--ink);border:1px solid var(--line);font-size:1.15rem}
+.answers.two{grid-template-columns:repeat(2,1fr)}
 
 .grid{display:grid;grid-template-columns:auto repeat(4,1fr);gap:6px;width:100%;max-width:520px;margin:0 auto}
 .grid .h{font-size:.78rem;color:var(--muted);text-align:center;align-self:center;font-weight:600}
@@ -92,7 +95,7 @@ header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:s
 .fb-line{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .fb-text{font-size:1.1rem;font-weight:600}
 .fb-text.ok{color:var(--good)} .fb-text.bad{color:var(--bad)}
-.mini{display:grid;grid-template-columns:auto repeat(4,1fr);gap:4px;font-size:.85rem}
+.mini{display:grid;grid-template-columns:auto repeat(var(--mini-cols,4),1fr);gap:4px;font-size:.85rem}
 .mini div{border-radius:8px;padding:4px 2px;text-align:center;font-weight:800;color:var(--pill-ink)}
 .mini .h{color:var(--muted);font-weight:600;font-size:.72rem;background:none}
 .mini .c{opacity:.4}

@@ -18,6 +18,14 @@ function pills(topic) {
     .join('')}</div>`;
 }
 
+// Кнопки кроку 1 двокрокової картки (Wo?/Wohin?) — нейтральні (не кольори артиклів):
+// це інтерфейсний вибір правила, а не мнемоніка таблиці.
+function stepPills(options) {
+  return `<div class="answers${options.length === 2 ? ' two' : ''}" style="--ans-cols:${options.length}">${options
+    .map((o, i) => `<button class="pill plain" data-a="${o}"><kbd>${i + 1}</kbd>${o}</button>`)
+    .join('')}</div>`;
+}
+
 function revGrid(topic, card) {
   let h = `<div class="grid" style="--sel:${color(topic, card.answer)}"><div></div>${topic.matrix.cols.map(g => `<div class="h">${g.label}</div>`).join('')}`;
   topic.matrix.rows.forEach(cs => {
@@ -30,7 +38,9 @@ function revGrid(topic, card) {
 }
 
 function miniTable(topic, target, chosen) {
-  let h = `<div class="mini"><div class="h"></div>${topic.matrix.cols.map(g => `<div class="h">${g.label}</div>`).join('')}`;
+  // --mini-cols підганяє сітку під кількість родів теми (artikel — 4, wechsel — 3),
+  // інакше на вузькому екрані клітинки й підписи рядків з'їжджають у чужі колонки.
+  let h = `<div class="mini" style="--mini-cols:${topic.matrix.cols.length}"><div class="h"></div>${topic.matrix.cols.map(g => `<div class="h">${g.label}</div>`).join('')}`;
   topic.matrix.rows.forEach(cs => {
     h += `<div class="h" style="text-align:right">${cs.label}</div>`;
     topic.matrix.cols.forEach(g => {
@@ -54,6 +64,17 @@ export function renderCard(cardEl, topic, cur, cardState, handlers) {
 
   // Тема може вимкнути чип-рід (genus: рід і є відповіддю — не підказувати).
   const chip = topic.showChip === false ? '' : genderChip(topic, c);
+
+  // Двокрокова картка: речення з пропуском лишається на екрані обидва кроки (щоб крок 2
+  // тренувався навіть після помилки в кроці 1). Спершу — лише кнопки Wo?/Wohin?.
+  if (c.type === 'twostep') {
+    const body = `<div class="sentence" lang="de">${c.prompt.replace('___', '<span class="blank" id="blank">&nbsp;</span>')}</div>${chip}`;
+    cardEl.innerHTML = `<div class="kind"><span>${c.kind}</span>${badge}</div><div class="prompt">${body}</div>`
+      + `<div id="step1wrap">${stepPills(c.step1.options)}</div><div class="feedback" id="fb1"></div>`
+      + `<div id="step2wrap"></div><div class="feedback" id="fb"></div>`;
+    cardEl.querySelectorAll('#step1wrap .pill').forEach(b => b.addEventListener('click', () => handlers.onChoose(b.dataset.a)));
+    return;
+  }
   let body = '';
   if (c.type === 'choice') body = `<div class="big" lang="de">${c.prompt}</div>${chip}`;
   if (c.type === 'sentence') body = `<div class="sentence" lang="de">${c.prompt.replace('___', '<span class="blank" id="blank">&nbsp;</span>')}</div>${chip}`;
@@ -124,6 +145,61 @@ export function showChoiceFeedback(cardEl, topic, card, chosen, ms, fast, ok, on
   }
 }
 
+// Двокрокова картка, крок 1: позначити Wo?/Wohin?, показати ПРАВИЛО (зміна локації —
+// не «рух»), тоді відкрити крок 2 (вибір артикля). Помилка не ховає крок 2.
+export function showTwoStepStep1(cardEl, topic, card, chosen, ms1, fast1, ok1, onStep2) {
+  cardEl.querySelectorAll('#step1wrap .pill').forEach(b => {
+    b.disabled = true;
+    const x = b.dataset.a;
+    if (x === card.step1.answer) b.classList.add('right');
+    else if (x === chosen) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+  const fb1 = document.getElementById('fb1');
+  const head = ok1
+    ? `<span class="fb-text ok">Так — ${card.step1.answer}</span>`
+    : `<span class="fb-text bad">Ні — правильно ${card.step1.answer}</span>`;
+  fb1.innerHTML = `<div class="fb-line">${head}<span class="hint">крок 2: артикль</span></div><div class="why">${card.step1.why}</div>`;
+  fb1.classList.add('show');
+
+  // Крок 2 — звичайний вибір артикля (ті самі пігулки, що в artikel).
+  const wrap = document.getElementById('step2wrap');
+  wrap.innerHTML = pills(topic);
+  wrap.querySelectorAll('.pill').forEach(b => b.addEventListener('click', () => onStep2(b.dataset.a)));
+}
+
+// Двокрокова картка, крок 2: відмінок і рід. Показ правильності — за кроком 2 (учень міг
+// узяти правильний артикль навіть після помилки в кроці 1). Кнопка «Далі» — коли картка в
+// цілому не зарахована (щоб учень прочитав обидва фідбеки); інакше викликач автопереходить.
+export function showTwoStepStep2(cardEl, topic, card, chosen, ms2, fast2, ok2, overallOk, onNext) {
+  cardEl.querySelectorAll('#step2wrap .pill').forEach(b => {
+    b.disabled = true;
+    const x = b.dataset.a;
+    if (x === card.answer) b.classList.add('right');
+    else if (x === chosen) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+  const blank = document.getElementById('blank');
+  if (blank) { blank.textContent = card.answer; blank.style.background = color(topic, card.answer); }
+
+  const rl = rowLabel(topic, card.cell.row), cl = colLabel(topic, card.cell.col);
+  const sec = (ms2 / 1000).toFixed(1);
+  const whyHtml = card.why ? `<div class="why">${card.why}</div>` : '';
+  const fb = document.getElementById('fb');
+  const nextBtn = '<div style="display:flex;justify-content:flex-end"><button class="btn" id="nextBtn">Далі <small style="opacity:.6">(Enter)</small></button></div>';
+
+  if (ok2) {
+    cardEl.classList.add(overallOk ? 'flash-ok' : 'flash-bad');
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text ok">Так, ${card.answer} · ${sec} с${fast2 ? '' : ' — повільно'}</span><span class="hint">${rl} · ${cl}</span></div>${whyHtml}${overallOk ? '' : nextBtn}`;
+  } else {
+    cardEl.classList.add('flash-bad');
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">Ні: ${rl} · ${cl} → ${card.answer}</span></div>${whyHtml}${miniTable(topic, card.cell, chosen)}${nextBtn}`;
+  }
+  fb.classList.add('show');
+  const nb = document.getElementById('nextBtn');
+  if (nb) { nb.addEventListener('click', onNext); nb.focus(); }
+}
+
 // Фідбек для grid. sel — Set позначених клітинок.
 export function showGridFeedback(cardEl, topic, card, sel, ms, fast, ok, onNext) {
   const want = new Set(card.cells);
@@ -155,7 +231,9 @@ export function renderDone(cardEl, data, cardsCount, onDrill) {
   const ds = Object.values(data.cards).map(s => s.due);
   const nxt = ds.length ? Math.min(...ds) - Date.now() : 0;
   const intro = Object.keys(data.cards).length;
-  cardEl.innerHTML = `<div class="done"><div class="big">Готово</div><p>${intro ? `Усе, що мало бути повторено, повторено. Наступне повторення — через ${fmt(Math.max(nxt, 0))}. Між сесіями грай у профілактику: помилки там повертають картку в чергу.` : 'Натисни «Навчання», щоб почати.'}</p><button class="btn" id="goDrill">Профілактика</button></div>`;
+  // Менше за хвилину — не показуємо секунди («через 4 с» виглядає як помилка), кажемо «зовсім скоро».
+  const whenNext = Math.max(nxt, 0) < 60e3 ? 'зовсім скоро' : `через ${fmt(nxt)}`;
+  cardEl.innerHTML = `<div class="done"><div class="big">Готово</div><p>${intro ? `Усе, що мало бути повторено, повторено. Наступне повторення — ${whenNext}. Між сесіями грай у профілактику: помилки там повертають картку в чергу.` : 'Натисни «Навчання», щоб почати.'}</p><button class="btn" id="goDrill">Профілактика</button></div>`;
   document.getElementById('goDrill').addEventListener('click', onDrill);
 }
 

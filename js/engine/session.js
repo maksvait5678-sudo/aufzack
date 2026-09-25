@@ -29,10 +29,8 @@ export function createSession(topic) {
     return cur;
   }
 
-  // Оцінити відповідь на поточну картку. Повертає fast (чи була швидкою).
-  function answer(card, ok, ms, now = Date.now()) {
-    const { state, fast } = srs.grade(st(card.id), { ok, ms, type: card.type, mode, now });
-    data.cards[card.id] = state;
+  // Спільне для всіх типів відповідей: серія/рекорд, лічильник дня, recent, прапорець.
+  function record(ok, cardId, now) {
     if (ok) {
       data.streak++;
       data.best = Math.max(data.best, data.streak);
@@ -42,11 +40,28 @@ export function createSession(topic) {
     const d = new Date(now).toDateString();
     if (data.today.d !== d) data.today = { d, n: 0 };
     data.today.n++;
-    recent.push(card.id);
+    recent.push(cardId);
     if (recent.length > 6) recent.shift();
     answered = true;
+  }
+
+  // Оцінити відповідь на поточну картку. Повертає fast (чи була швидкою).
+  function answer(card, ok, ms, now = Date.now()) {
+    const { state, fast } = srs.grade(st(card.id), { ok, ms, type: card.type, mode, now });
+    data.cards[card.id] = state;
+    record(ok, card.id, now);
     persist();
     return fast;
+  }
+
+  // Оцінити двокрокову картку (обидва кроки разом). Серія/розклад — за загальним вердиктом;
+  // діагностика (errStep, w1/w2) осідає у стані картки. Повертає покроковий результат для UI.
+  function answerTwoStep(card, steps, now = Date.now()) {
+    const res = srs.gradeTwoStep(st(card.id), { ...steps, mode, now });
+    data.cards[card.id] = res.state;
+    record(res.ok, card.id, now);
+    persist();
+    return res;
   }
 
   function setMode(m) {
@@ -76,6 +91,7 @@ export function createSession(topic) {
     pickNext,
     next,
     answer,
+    answerTwoStep,
     setMode,
     reset
   };

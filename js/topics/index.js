@@ -2,9 +2,10 @@
 
 import genus from './genus.js';
 import artikel from './artikel.js';
+import wechsel from './wechsel.js';
 
 // Порядок = порядок у хабі. genus перший: рід — база для таблиці артиклів.
-export const topics = [genus, artikel];
+export const topics = [genus, artikel, wechsel];
 export const byId = Object.fromEntries(topics.map(t => [t.id, t]));
 
 export function getTopic(id) {
