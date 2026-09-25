@@ -11,10 +11,19 @@ function genderChip(topic, card) {
   return `<span class="gchip">${colLabel(topic, card.cell.col)}</span>`;
 }
 
-function pills(topic) {
+function pills(topic, card) {
+  // Картка може нести власні кнопки (`options`) і кольори (`optionColors`) — напр.
+  // прийменники: Akkusativ/Dativ або злиті форми. Без них — кнопки й кольори теми.
+  const options = (card && card.options) || topic.answers;
+  const colors = (card && card.optionColors) || topic.colors;
   // --ans-cols підганяє сітку під кількість кнопок (3 для genus, 6 для artikel).
-  return `<div class="answers" style="--ans-cols:${topic.answers.length}">${topic.answers
-    .map((a, i) => `<button class="pill" data-a="${a}" style="background:${color(topic, a)}"><kbd>${i + 1}</kbd>${a}</button>`)
+  return `<div class="answers" style="--ans-cols:${options.length}">${options
+    .map((a, i) => {
+      // Кнопка без свого кольору (Akkusativ/Dativ, злиті форми) — нейтральна `plain`:
+      // це вибір правила, а не мнемоніка кольорів таблиці.
+      const bg = colors[a];
+      return `<button class="pill${bg ? '' : ' plain'}" data-a="${a}"${bg ? ` style="background:${bg}"` : ''}><kbd>${i + 1}</kbd>${a}</button>`;
+    })
     .join('')}</div>`;
 }
 
@@ -62,8 +71,9 @@ export function renderCard(cardEl, topic, cur, cardState, handlers) {
     ? '<span class="badge new">нова</span>'
     : (cardState ? `<span class="badge">рівень ${cardState.b}</span>` : '');
 
-  // Тема може вимкнути чип-рід (genus: рід і є відповіддю — не підказувати).
-  const chip = topic.showChip === false ? '' : genderChip(topic, c);
+  // Тема може вимкнути чип-рід (genus: рід і є відповіддю). Картка без `cell`
+  // (прийменники, блоки 1–3) також не має чипа — вона поза матрицею теми.
+  const chip = (topic.showChip === false || !c.cell) ? '' : genderChip(topic, c);
 
   // Двокрокова картка: речення з пропуском лишається на екрані обидва кроки (щоб крок 2
   // тренувався навіть після помилки в кроці 1). Спершу — лише кнопки Wo?/Wohin?.
@@ -82,7 +92,7 @@ export function renderCard(cardEl, topic, cur, cardState, handlers) {
 
   const ans = c.type === 'grid'
     ? `<div style="display:flex;justify-content:center;margin-top:10px"><button class="btn" id="check">Перевірити <small style="opacity:.6">(Enter)</small></button></div>`
-    : pills(topic);
+    : pills(topic, c);
 
   cardEl.innerHTML = `<div class="kind"><span>${c.kind}</span>${badge}</div><div class="prompt">${body}</div>${ans}<div class="feedback" id="fb"></div>`;
 
@@ -104,11 +114,29 @@ export function showChoiceFeedback(cardEl, topic, card, chosen, ms, fast, ok, on
     else b.classList.add('dim');
   });
   const blank = document.getElementById('blank');
-  if (blank) { blank.textContent = card.answer; blank.style.background = color(topic, card.answer); }
+  if (blank) { blank.textContent = card.answer; blank.style.background = color(topic, card.answer) || ''; }
 
   const fb = document.getElementById('fb');
   const sec = (ms / 1000).toFixed(1);
   const whyHtml = card.why ? `<div class="why">${card.why}</div>` : '';
+
+  // Картка поза матрицею теми (прийменники, блоки 1–3): немає рядка/колонки й
+  // міні-таблиці — весь фідбек несе `why`. Показуємо просту правильну відповідь.
+  if (!card.cell) {
+    if (ok) {
+      cardEl.classList.add('flash-ok');
+      fb.innerHTML = `<div class="fb-line"><span class="fb-text ok">Так, ${card.answer} · ${sec} с${fast ? '' : ' — повільно, повторимо скоріше'}</span></div>${whyHtml}`;
+      fb.classList.add('show');
+    } else {
+      cardEl.classList.add('flash-bad');
+      fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">Ні: ${card.answer}</span></div>${whyHtml}<div style="display:flex;justify-content:flex-end"><button class="btn" id="nextBtn">Далі <small style="opacity:.6">(Enter)</small></button></div>`;
+      fb.classList.add('show');
+      const nb = document.getElementById('nextBtn');
+      nb.addEventListener('click', onNext);
+      nb.focus();
+    }
+    return;
+  }
 
   // Теми без чипа (genus): відповідь показуємо як «die Tür», без сітки-міні-таблиці.
   if (topic.showChip === false) {
