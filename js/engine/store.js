@@ -26,6 +26,11 @@ export function markNudged() { const m = readMeta(); m.nudged = true; writeMeta(
 // Показати нагадування: 50+ відповідей, жодного збереження, ще не показували.
 export function shouldNudgeSave() { const m = readMeta(); return (m.answered || 0) > NUDGE_AFTER && !m.saved && !m.nudged; }
 
+// Чи відкривав користувач панель «Як це працює». Прапорець локальний (той самий мета-ключ),
+// щоб позначка-нагадування не «їхала» на інший пристрій разом із прогресом.
+export function helpSeen() { return !!readMeta().helped; }
+export function markHelpSeen() { const m = readMeta(); m.helped = true; writeMeta(m); }
+
 export function freshTopic() {
   return { cards: {}, streak: 0, best: 0, today: { d: '', n: 0 } };
 }

@@ -28,9 +28,12 @@
       </a>
       <div class="topic-logo" id="topicLogo"></div>
     </div>
-    <div class="modes" role="group" aria-label="Режим">
-      <button id="mLearn" aria-pressed="true">Навчання</button>
-      <button id="mDrill" aria-pressed="false">Профілактика</button>
+    <div class="head-right">
+      <div class="modes" role="group" aria-label="Режим">
+        <button id="mLearn" aria-pressed="true">Навчання</button>
+        <button id="mDrill" aria-pressed="false">Профілактика</button>
+      </div>
+      <div class="head-actions" id="headActions"></div>
     </div>
   </header>
 
@@ -76,6 +79,9 @@ import { renderCard, showChoiceFeedback, showGridFeedback, renderDone } from './
 import { renderHeat } from './js/ui/heat.js';
 import { renderStats } from './js/ui/stats.js';
 import { bindKeyboard } from './js/ui/keyboard.js';
+import { mountHelp } from './js/ui/help.js';
+
+mountHelp(document.getElementById('headActions'));
 
 const params = new URLSearchParams(location.search);
 const topic = getTopic(params.get('topic') || 'artikel');
