@@ -51,12 +51,14 @@
     <div class="heat" id="heat"></div>
   </section>
 
+  <div class="nudge" id="saveNudge" hidden></div>
+
   <footer>
-    <span id="sync">Прогрес зберігається в цьому браузері</span>
+    <span id="sync">Прогрес живе лише в цьому браузері. Збережи код, щоб перенести його на інший пристрій.</span>
     <span>
-      <button class="linkbtn" id="exportBtn">Експортувати код</button>
+      <button class="linkbtn" id="exportBtn">Зберегти прогрес</button>
       ·
-      <button class="linkbtn" id="importBtn">Імпортувати код</button>
+      <button class="linkbtn" id="importBtn">Перенести прогрес сюди</button>
       ·
       <button class="linkbtn" id="reset">Скинути прогрес</button>
     </span>
@@ -130,6 +132,7 @@ function choose(a) {
   const ok = a === c.answer;
   const fast = session.answer(c, ok, ms);
   refresh();
+  afterAnswer();
   showChoiceFeedback(cardEl, topic, c, a, ms, fast, ok, advance);
   if (ok) autoT = setTimeout(advance, fast ? 750 : 1500);
 }
@@ -143,8 +146,25 @@ function checkRev() {
   const ok = want.size === sel.size && [...want].every(k => sel.has(k));
   const fast = session.answer(c, ok, ms);
   refresh();
+  afterAnswer();
   showGridFeedback(cardEl, topic, c, sel, ms, fast, ok, advance);
   if (ok) autoT = setTimeout(advance, fast ? 900 : 1600);
+}
+
+// Порахувати відповідь для нагадування «збережи прогрес» і, за потреби, показати його.
+function afterAnswer() {
+  store.noteAnswered();
+  if (store.shouldNudgeSave()) showNudge();
+}
+
+// Ненав'язливе одноразове нагадування зберегти код, коли прогресу вже назбиралось.
+function showNudge() {
+  store.markNudged(); // одноразово: незалежно від дії учня більше не показуємо
+  const n = document.getElementById('saveNudge');
+  n.innerHTML = `<p>Уже понад ${store.NUDGE_AFTER} відповідей, а прогрес ще ніде не збережено — він живе лише в цьому браузері. Збережи код, щоб не втратити його.</p><button class="btn" id="nudgeSave">Зберегти прогрес</button><button class="linkbtn x" id="nudgeClose" aria-label="Закрити нагадування">✕</button>`;
+  n.hidden = false;
+  document.getElementById('nudgeSave').addEventListener('click', () => { n.hidden = true; openExport(); });
+  document.getElementById('nudgeClose').addEventListener('click', () => { n.hidden = true; });
 }
 
 function setMode(m) {
@@ -160,8 +180,9 @@ function closeIO() { ioPanel.classList.remove('show'); ioPanel.innerHTML = ''; }
 function ioMsg(kind, text) { const m = document.getElementById('ioMsg'); if (m) { m.textContent = text; m.className = 'io-msg ' + kind; } }
 
 function openExport() {
+  store.noteSaved(); // скористався збереженням — нагадування знімаємо
   const code = store.exportCode();
-  ioPanel.innerHTML = `<h3>Код прогресу</h3><p>Скопіюй цей код і встав його на іншому пристрої через «Імпортувати код».</p><textarea id="ioText" readonly>${code}</textarea><div class="io-actions"><button class="btn" id="ioCopy">Копіювати</button><button class="btn ghost" id="ioClose">Закрити</button></div><div class="io-msg" id="ioMsg"></div>`;
+  ioPanel.innerHTML = `<h3>Код прогресу</h3><p>Скопіюй цей код і встав його на іншому пристрої через «Перенести прогрес сюди».</p><textarea id="ioText" readonly>${code}</textarea><div class="io-actions"><button class="btn" id="ioCopy">Копіювати</button><button class="btn ghost" id="ioClose">Закрити</button></div><div class="io-msg" id="ioMsg"></div>`;
   ioPanel.classList.add('show');
   const ta = document.getElementById('ioText');
   document.getElementById('ioCopy').addEventListener('click', async () => {

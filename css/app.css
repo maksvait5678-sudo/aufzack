@@ -122,6 +122,14 @@ section.map{margin-top:18px;background:var(--surface);border:1px solid var(--lin
 footer{display:flex;justify-content:space-between;align-items:center;margin-top:14px;color:var(--muted);font-size:.8rem;gap:10px;flex-wrap:wrap}
 .linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0}
 
+/* Нагадування «збережи прогрес» — ненав'язливий рядок, не модалка */
+.nudge{display:flex;align-items:center;gap:10px;margin-top:14px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--brand-accent);border-radius:14px;padding:10px 14px;color:var(--ink);font-size:.9rem}
+.nudge[hidden]{display:none}
+.nudge p{margin:0;flex:1}
+.nudge .btn{padding:8px 14px;font-size:.85rem}
+.nudge .x{flex:0 0 auto;font-size:1rem;text-decoration:none;color:var(--muted)}
+.nudge .x:hover{color:var(--ink)}
+
 /* Хаб (index.html) */
 .intro{color:var(--muted);margin:0 0 16px;max-width:60ch}
 .topics{display:flex;flex-direction:column;gap:12px}
