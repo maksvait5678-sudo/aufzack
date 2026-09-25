@@ -9,6 +9,23 @@ const KEY = 'deutsch-drill';
 const OLD_KEY_ARTIKEL = 'artikel-srs-v1';
 export const VERSION = 2;
 
+// Мета-лічильники для нагадування «збережи прогрес». Окремий ключ, поза експортом:
+// прогрес переносять між пристроями, а «скільки відповів / чи зберігав» — локальне.
+const META_KEY = 'deutsch-drill-meta';
+export const NUDGE_AFTER = 50; // відповідей без збереження → одноразове нагадування
+
+function readMeta() { try { return JSON.parse(localStorage.getItem(META_KEY)) || {}; } catch (e) { return {}; } }
+function writeMeta(m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) { /* квота/приватний режим */ } }
+
+// Порахувати відповідь. Повертає новий сумарний лічильник.
+export function noteAnswered() { const m = readMeta(); m.answered = (m.answered || 0) + 1; writeMeta(m); return m.answered; }
+// Учень скористався збереженням коду — нагадування більше не потрібне.
+export function noteSaved() { const m = readMeta(); m.saved = true; writeMeta(m); }
+// Нагадування показано (одноразово: закрив чи зберіг — більше не турбуємо).
+export function markNudged() { const m = readMeta(); m.nudged = true; writeMeta(m); }
+// Показати нагадування: 50+ відповідей, жодного збереження, ще не показували.
+export function shouldNudgeSave() { const m = readMeta(); return (m.answered || 0) > NUDGE_AFTER && !m.saved && !m.nudged; }
+
 export function freshTopic() {
   return { cards: {}, streak: 0, best: 0, today: { d: '', n: 0 } };
 }
