@@ -8,8 +8,10 @@ export const SEC = 1e3, MIN = 60e3, HOUR = 36e5, DAY = 864e5;
 export const IV = [MIN, MIN, 10 * MIN, DAY, 3 * DAY, 7 * DAY, 16 * DAY, 35 * DAY, 80 * DAY];
 export const MAXB = IV.length - 1;
 
-// Ліміт «швидкої» відповіді за типом картки, мс.
-export const FAST = { choice: 4000, sentence: 7000, grid: 12000, type: 12000 };
+// Ліміт «швидкої» відповіді за типом картки, мс. twostep — поріг ДРУГОГО кроку (вибір артикля).
+export const FAST = { choice: 4000, sentence: 7000, grid: 12000, type: 12000, twostep: 4000 };
+// Поріг ПЕРШОГО кроку двокрокової картки (бінарний вибір Wo?/Wohin? — тугіший).
+export const FAST_STEP1 = 3000;
 
 // Помилка швидша за це — радше вгадування: важчий штраф у вазі профілактики.
 export const FAST_ERROR = 1200;
@@ -28,9 +30,10 @@ export function drillWeight(s) {
 
 // Оцінити відповідь. Повертає НОВИЙ стан картки і чи була відповідь швидкою.
 // streak/best/today тут не чіпаємо — це прогрес рівня сесії/сховища.
-export function grade(state, { ok, ms, type, mode, now }) {
+// `fast` можна передати явно (складені картки самі вирішують «швидко»); інакше — за ms/типом.
+export function grade(state, { ok, ms, type, mode, now, fast }) {
   const s = state ? { ...state } : freshCard(now);
-  const fast = ms <= FAST[type];
+  if (fast === undefined) fast = ms <= FAST[type];
   const wasDue = s.due <= now;
   if (ok) {
     s.r++;
@@ -69,6 +72,25 @@ export function grade(state, { ok, ms, type, mode, now }) {
     s.relearnAt = undefined;
   }
   return { state: s, fast, ok };
+}
+
+// Двокрокова картка (Wechselpräpositionen): крок 1 — Wo?/Wohin?, крок 2 — артикль.
+// Обидва кроки оцінюються, час рахується окремо (різні пороги). Планувальник трактує
+// картку як ціле: правильно = обидва кроки правильні, швидко = обидва в межах порогів.
+// У стані зберігаємо ДІАГНОСТИКУ: errStep (де була помилка) і накопичувальні w1/w2 —
+// step1 сигналить незнання правила (зміна локації), step2 — незнання таблиці артиклів.
+export function gradeTwoStep(state, { ok1, ms1, ok2, ms2, mode, now }) {
+  const fast1 = ms1 <= FAST_STEP1;
+  const fast2 = ms2 <= FAST.twostep;
+  const ok = ok1 && ok2;
+  const fast = fast1 && fast2;
+  // Штраф за вгадування рахуємо по ms кроку, що впав (раніший з невірних); якщо обидва вірні — не важливо.
+  const penMs = !ok1 ? ms1 : (!ok2 ? ms2 : Math.max(ms1, ms2));
+  const { state: s } = grade(state, { ok, ms: penMs, type: 'twostep', mode, now, fast });
+  s.w1 = (s.w1 || 0) + (ok1 ? 0 : 1);
+  s.w2 = (s.w2 || 0) + (ok2 ? 0 : 1);
+  s.errStep = ok1 ? (ok2 ? null : 'step2') : (ok2 ? 'step1' : 'both');
+  return { state: s, ok, fast, ok1, ok2, fast1, fast2 };
 }
 
 // Вибір наступної картки. `cards` — колода в порядку введення нових,

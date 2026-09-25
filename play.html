@@ -72,7 +72,8 @@
 import { getTopic } from './js/topics/index.js';
 import { createSession } from './js/engine/session.js';
 import * as store from './js/engine/store.js';
-import { renderCard, showChoiceFeedback, showGridFeedback, renderDone } from './js/ui/render.js';
+import { renderCard, showChoiceFeedback, showGridFeedback, showTwoStepStep1, showTwoStepStep2, renderDone } from './js/ui/render.js';
+import { FAST_STEP1, FAST } from './js/engine/srs.js';
 import { renderHeat } from './js/ui/heat.js';
 import { renderStats } from './js/ui/stats.js';
 import { bindKeyboard } from './js/ui/keyboard.js';
@@ -100,7 +101,7 @@ const statEls = {
   today: document.getElementById('sToday')
 };
 
-let peek = false, autoT = null, sel = new Set();
+let peek = false, autoT = null, sel = new Set(), ts = null; // ts — стан двокрокової картки
 
 function refresh() {
   renderStats(statEls, topic, session.data);
@@ -113,8 +114,9 @@ function advance() {
   cardEl.classList.remove('flash-ok', 'flash-bad');
   const cur = session.next();
   if (!cur) { renderDone(cardEl, session.data, topic.cards.length, () => setMode('drill')); return; }
+  ts = cur.card.type === 'twostep' ? { phase: 'step1' } : null;
   renderCard(cardEl, topic, cur, session.stateOf(cur.card.id), {
-    onChoose: choose,
+    onChoose,
     onToggleCell: (k, el) => {
       if (session.answered) return;
       if (sel.has(k)) { sel.delete(k); el.setAttribute('aria-pressed', 'false'); }
@@ -122,6 +124,14 @@ function advance() {
     },
     onCheck: checkRev
   });
+}
+
+// Роутер вибору: двокрокова картка йде своїм шляхом, решта — звичайним choose.
+function onChoose(a) {
+  const cur = session.cur;
+  if (!cur) return;
+  if (cur.card.type === 'twostep') return twoStepChoose(a);
+  return choose(a);
 }
 
 function choose(a) {
@@ -135,6 +145,31 @@ function choose(a) {
   afterAnswer();
   showChoiceFeedback(cardEl, topic, c, a, ms, fast, ok, advance);
   if (ok) autoT = setTimeout(advance, fast ? 750 : 1500);
+}
+
+// Двокрокова картка: крок 1 (Wo?/Wohin?) → правило, потім крок 2 (артикль) → таблиця.
+// Час кроків рахується окремо. Оцінюємо картку як ціле лише після кроку 2.
+function twoStepChoose(a) {
+  const cur = session.cur;
+  if (!cur || !ts || session.answered) return;
+  const c = cur.card;
+  if (ts.phase === 'step1') {
+    const ms1 = Date.now() - session.shownAt;
+    ts.ok1 = a === c.step1.answer;
+    ts.ms1 = ms1;
+    ts.step2At = Date.now();
+    ts.phase = 'step2';
+    showTwoStepStep1(cardEl, topic, c, a, ms1, ms1 <= FAST_STEP1, ts.ok1, twoStepChoose);
+  } else if (ts.phase === 'step2') {
+    const ms2 = Date.now() - ts.step2At;
+    const ok2 = a === c.answer;
+    ts.phase = 'done';
+    const res = session.answerTwoStep(c, { ok1: ts.ok1, ms1: ts.ms1, ok2, ms2 });
+    refresh();
+    afterAnswer();
+    showTwoStepStep2(cardEl, topic, c, a, ms2, res.fast2, ok2, res.ok, advance);
+    if (res.ok) autoT = setTimeout(advance, res.fast ? 750 : 1500);
+  }
 }
 
 function checkRev() {
@@ -222,8 +257,13 @@ document.getElementById('importBtn').addEventListener('click', openImport);
 bindKeyboard({
   getCur: () => session.cur,
   isAnswered: () => session.answered,
-  getAnswers: () => topic.answers,
-  onChoose: choose,
+  // Двокрокова картка: на кроці 1 діють цифри Wo?/Wohin?, на кроці 2 — артиклі.
+  getAnswers: () => {
+    const cur = session.cur;
+    if (cur && cur.card.type === 'twostep' && ts && ts.phase === 'step1') return cur.card.step1.options;
+    return topic.answers;
+  },
+  onChoose,
   onCheck: checkRev,
   onNext: advance
 });

@@ -76,6 +76,9 @@ header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:s
 .pill.right{outline:3px solid var(--good);outline-offset:2px;opacity:1}
 .pill.wrong{outline:3px solid var(--bad);outline-offset:2px;opacity:1}
 .pill:disabled{cursor:default}
+/* Кнопки кроку 1 двокрокової картки — нейтральні (не кольори артиклів) */
+.pill.plain{background:var(--surface2);color:var(--ink);border:1px solid var(--line);font-size:1.15rem}
+.answers.two{grid-template-columns:repeat(2,1fr)}
 
 .grid{display:grid;grid-template-columns:auto repeat(4,1fr);gap:6px;width:100%;max-width:520px;margin:0 auto}
 .grid .h{font-size:.78rem;color:var(--muted);text-align:center;align-self:center;font-weight:600}
