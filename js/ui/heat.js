@@ -14,7 +14,11 @@ export function renderHeat(heatEl, topic, states, peek) {
       // Розріджена матриця (genus): порожня клітинка — без заливки й підпису, лишається нейтральною.
       const v = has ? related.reduce((acc, c) => acc + (st(c.id) ? Math.min(st(c.id).b, 4) / 4 : 0), 0) / related.length : 0;
       const a = topic.matrix.value(cs.k, g.k);
-      const label = !has ? '' : (peek ? `<span>${a}</span>` : `<span class="pct">${Math.round(v * 100)}%</span>`);
+      // У peek текст на кольоровій пігулці — темний (--pill-ink), але якщо тема без
+      // кольорів відповідей (praesens: нейтральна карта), фон лишається нейтральним,
+      // тож беремо --ink (читається і в темній, і в світлій темі).
+      const peekInk = topic.colors[a] ? '' : ' style="color:var(--ink)"';
+      const label = !has ? '' : (peek ? `<span${peekInk}>${a}</span>` : `<span class="pct">${Math.round(v * 100)}%</span>`);
       const fill = has ? `<div class="fill" style="background:${peek ? topic.colors[a] : 'var(--prog)'};transform:scaleX(${peek ? 1 : v})"></div>` : '';
       h += `<div class="hc" title="${cs.label} ${g.label}">${fill}${label}</div>`;
     });
