@@ -13,6 +13,19 @@ export const FAST = { choice: 4000, sentence: 7000, grid: 12000, type: 12000, tw
 // Поріг ПЕРШОГО кроку двокрокової картки (бінарний вибір Wo?/Wohin? — тугіший).
 export const FAST_STEP1 = 3000;
 
+// Порівняння текстової відповіді (картки типу `type`, SPEC §4).
+// Умлаути РОЗГОРТАЄМО (ä→ae, ö→oe, ü→ue, ß→ss), а не згортаємо: `ae` зʼявляється
+// лише з реального `ä`, тож «faehrst» (спосіб набрати умлаут без нім. клавіатури)
+// зараховується, а «fahrst» (граматична помилка — без умлаута) — ні. Згортання
+// (ä→a) зробило б «fahrst» правильним, що хибно. Регістр і крайні пробіли не важать.
+export function normType(s) {
+  return String(s).trim().toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+}
+export function typeMatches(input, answer) {
+  return normType(input) === normType(answer) && normType(input) !== '';
+}
+
 // Помилка швидша за це — радше вгадування: важчий штраф у вазі профілактики.
 export const FAST_ERROR = 1200;
 // Мінімальний розрив між двома правильними відповідями, щоб зняти relearn.

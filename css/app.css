@@ -80,6 +80,18 @@ header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:s
 .pill.plain{background:var(--surface2);color:var(--ink);border:1px solid var(--line);font-size:1.15rem}
 .answers.two{grid-template-columns:repeat(2,1fr)}
 
+/* Картка type (ввід форми, напр. дієвідміна). Підказка-особа під інфінітивом; поле
+   вводу + «Перевірити» в один ряд, одразу під промптом — щоб на телефоні лишались
+   над екранною клавіатурою. */
+.type-cue{font-size:1.6rem;font-weight:700;color:var(--ink);background:var(--surface2);border:2px solid var(--line);border-radius:999px;padding:4px 20px}
+.type-answer{display:flex;gap:8px;align-items:stretch;margin-top:6px}
+.type-input{flex:1;min-width:0;border:2px solid var(--line);border-radius:14px;padding:12px 14px;font:inherit;font-size:1.3rem;font-weight:700;background:var(--surface2);color:var(--ink);text-align:center}
+.type-input::placeholder{font-weight:400;color:var(--muted);opacity:.7}
+.type-input:focus{outline:none;border-color:var(--brand-accent)}
+.type-input.right{border-color:var(--good);color:var(--good)}
+.type-input.wrong{border-color:var(--bad);color:var(--bad)}
+.type-answer .btn{flex:0 0 auto}
+
 .grid{display:grid;grid-template-columns:auto repeat(4,1fr);gap:6px;width:100%;max-width:520px;margin:0 auto}
 .grid .h{font-size:.78rem;color:var(--muted);text-align:center;align-self:center;font-weight:600}
 .grid .rh{text-align:right;padding-right:4px}

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Präsens — перевірка даних</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 26px 0 8px; }
+  h3 { font-size: .95rem; margin: 16px 0 4px; }
+  h3 .uk { color: #666; font-weight: 400; }
+  .note { color: #666; margin: 0 0 16px; max-width: 78ch; }
+  .lang { display: flex; gap: 6px; align-items: center; margin: 0 0 14px; color: #666; font-size: .9rem; }
+  .lang button { font: inherit; padding: 4px 12px; border: 1px solid #ccc; background: Canvas; border-radius: 999px; cursor: pointer; color: inherit; }
+  .lang button[aria-pressed="true"] { background: #1c6b1c; border-color: #1c6b1c; color: #fff; }
+  .summary { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0 0 8px; padding: 12px 14px; background: #f4f4f2; border-radius: 10px; }
+  .summary b { font-variant-numeric: tabular-nums; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; margin: 0 0 6px; max-width: 72ch; }
+  th, td { text-align: left; padding: 5px 10px; border-bottom: 1px solid #ddd; vertical-align: top; }
+  @media (prefers-color-scheme: dark) { th, td { border-color: #333; } .summary { background: #222; } .note, .lang, h3 .uk { color: #999; } .lang button { border-color: #444; } }
+  th { font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; color: #666; white-space: nowrap; }
+  .person { color: #666; white-space: nowrap; }
+  .de { font-weight: 600; }
+  .de b { color: #1c6b1c; }
+  @media (prefers-color-scheme: dark) { .de b { color: #8fd68f; } }
+  .chg b { color: #9c4a10; }          /* форма зі зміною кореня / особлива — підсвічена */
+  @media (prefers-color-scheme: dark) { .chg b { color: #e0a060; } }
+  .why { color: #666; max-width: 48ch; }
+  .todo td { background: #fde2e2; }
+  @media (prefers-color-scheme: dark) { .todo td { background: #3a1f1f; } }
+  .badge { font-size: .78rem; padding: 1px 8px; border-radius: 999px; background: #fde2e2; color: #a33; }
+  @media (prefers-color-scheme: dark) { .badge { background: #4a1f1f; color: #e59; } }
+</style>
+</head>
+<body>
+<div class="lang" id="lang"></div>
+<h1 id="title"></h1>
+<p class="note" id="note"></p>
+<div class="summary" id="summary"></div>
+<div id="sections"></div>
+
+<script type="module">
+import { PERSONS, GROUPS, VERBS, whyFor, whyDeFor } from './js/topics/praesens.data.js';
+
+const esc = s => String(s).replace(/[&<>]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[x]));
+
+// Форма зі зміною (du/er у групах ae/ei/eie; ich/er у modal; du/er у haben) — підсвічуємо,
+// щоб вчитель одразу бачив саме ті клітинки, де дієслово відходить від регулярного.
+function changed(v, personK) {
+  if ((v.group === 'ae' || v.group === 'ei' || v.group === 'eie') && (personK === 'du' || personK === 'er')) return true;
+  if (v.group === 'modal' && (personK === 'ich' || personK === 'du' || personK === 'er')) return true;
+  if (v.group === 'haben' && (personK === 'du' || personK === 'er')) return true;
+  if (v.group === 'sein') return true;
+  if (v.sub === 'e' && (personK === 'du' || personK === 'er' || personK === 'ihr')) return true;
+  if (v.sub === 'ss' && personK === 'du') return true;
+  return false;
+}
+
+const T = {
+  uk: {
+    htmlLang: 'uk',
+    title: 'Präsens — перевірка даних для вчителя',
+    note: `Кожна таблиця — одне дієслово, по одній картці на особу з <code>js/topics/praesens.data.js</code>. Стовпець «форма» — те, що гра прийме за правильну відповідь (ввід без регістру; умлаути можна набирати як <code>ae/oe/ue/ss</code>). Підсвічено форми, що відходять від регулярного шаблону. Карта засвоєння теми — особи × групи дієслів.`,
+    cols: { person: 'Особа', form: 'Форма', why: 'Правило (why — його бачить учень)' },
+    groupName: { sein: 'sein', haben: 'haben', reg: '2. Правильні дієслова', ae: '3a. Зміна кореня a→ä', ei: '3b. Зміна кореня e→i', eie: '3c. Зміна кореня e→ie', modal: '4. Модальні дієслова' },
+    block1: '1. sein і haben (нерегулярні, першими)',
+    sum: (verbs, cards, todo) => `Дієслів: <b>${verbs}</b> · карток у грі: <b>${cards}</b> · todo: <b>${todo}</b>`
+  },
+  de: {
+    htmlLang: 'de',
+    title: 'Präsens — Datenprüfung für Lehrkräfte',
+    note: `Jede Tabelle ist ein Verb, je eine Karte pro Person aus <code>js/topics/praesens.data.js</code>. Die Spalte „Form“ zeigt, was das Spiel als richtig akzeptiert (Eingabe ohne Groß-/Kleinschreibung; Umlaute auch als <code>ae/oe/ue/ss</code>). Hervorgehoben sind Formen, die vom regelmäßigen Muster abweichen. Die Lernkarte des Themas: Personen × Verbgruppen.`,
+    cols: { person: 'Person', form: 'Form', why: 'Regel (why — sieht die lernende Person)' },
+    groupName: { sein: 'sein', haben: 'haben', reg: '2. Regelmäßige Verben', ae: '3a. Stammwechsel a→ä', ei: '3b. Stammwechsel e→i', eie: '3c. Stammwechsel e→ie', modal: '4. Modalverben' },
+    block1: '1. sein und haben (unregelmäßig, zuerst)',
+    sum: (verbs, cards, todo) => `Verben: <b>${verbs}</b> · Karten im Spiel: <b>${cards}</b> · todo: <b>${todo}</b>`
+  }
+};
+
+function verbTable(v, t, lang) {
+  const why = p => esc((lang === 'de' ? whyDeFor : whyFor)(v.sub, p.k));
+  const rows = PERSONS.map(p => {
+    const formCls = changed(v, p.k) ? 'de chg' : 'de';
+    return `<tr><td class="person">${esc(p.label)}</td><td class="${formCls}"><b>${esc(v.forms[p.k])}</b></td><td class="why">${why(p)}</td></tr>`;
+  }).join('');
+  const head = `<tr><th>${t.cols.person}</th><th>${t.cols.form}</th><th>${t.cols.why}</th></tr>`;
+  return `<h3>${esc(v.inf)} <span class="uk">— ${esc(v.uk)}</span></h3>`
+    + `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+}
+
+function render(lang) {
+  const t = T[lang];
+  document.documentElement.lang = t.htmlLang;
+  document.title = t.title;
+  document.getElementById('title').textContent = t.title;
+  document.getElementById('note').innerHTML = t.note;
+
+  const todo = VERBS.filter(v => v.todo).length;
+  const cards = VERBS.filter(v => !v.todo).length * PERSONS.length;
+  document.getElementById('summary').innerHTML = `<span>${t.sum(VERBS.length, cards, todo)}</span>`;
+
+  const secs = [];
+  // Блок 1: sein, haben під спільним заголовком.
+  secs.push(`<h2>${t.block1}</h2>`
+    + VERBS.filter(v => v.group === 'sein' || v.group === 'haben').map(v => verbTable(v, t, lang)).join(''));
+  // Решта груп — у порядку GROUPS, крім sein/haben.
+  GROUPS.filter(g => g.k !== 'sein' && g.k !== 'haben').forEach(g => {
+    const vs = VERBS.filter(v => v.group === g.k);
+    if (!vs.length) return;
+    secs.push(`<h2>${t.groupName[g.k]}</h2>` + vs.map(v => verbTable(v, t, lang)).join(''));
+  });
+
+  document.getElementById('sections').innerHTML = secs.join('');
+  document.querySelectorAll('#lang button').forEach(b => b.setAttribute('aria-pressed', b.dataset.l === lang));
+}
+
+function currentLang() { return new URLSearchParams(location.search).get('lang') === 'de' ? 'de' : 'uk'; }
+function setLang(lang) {
+  const u = new URL(location);
+  u.searchParams.set('lang', lang);
+  history.replaceState(null, '', u);
+  render(lang);
+}
+document.getElementById('lang').innerHTML = `<span>UK / DE:</span>`
+  + `<button type="button" data-l="uk">UK</button><button type="button" data-l="de">DE</button>`;
+document.querySelectorAll('#lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.l)));
+render(currentLang());
+</script>
+</body>
+</html>
