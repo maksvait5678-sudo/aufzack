@@ -35,9 +35,10 @@ const cards = VERBS.filter(v => !v.todo).flatMap(v =>
   }))
 );
 
+// Пігулки осіб у кольорах палітри осіб (css: --person-*, SPEC §5) — не артиклів.
 const logo = `<span class="tl-word">Präsens</span>`
-  + ['ich', 'du', 'er'].map(p =>
-      `<span class="tl-pill" style="background:var(--surface2);color:var(--ink);border:1px solid var(--line)">${p}</span>`
+  + [['ich', 'ich'], ['du', 'du'], ['er', 'er']].map(([k, label]) =>
+      `<span class="tl-pill" style="background:var(--person-${k});color:var(--person-ink)">${label}</span>`
     ).join('');
 
 export default {
