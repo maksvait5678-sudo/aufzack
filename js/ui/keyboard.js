@@ -10,9 +10,13 @@ export function bindKeyboard(handlers) {
     const answered = handlers.isAnswered();
     const answers = handlers.getAnswers();
 
-    // Цифри — лише для карток з кнопками. grid і type вводяться інакше (клітинки / поле),
-    // тож цифри там не перехоплюємо (інакше ламали б набір форми в type-полі).
-    if (!answered && c.type !== 'grid' && c.type !== 'type' && e.key >= '1' && e.key <= String(answers.length)) {
+    // Конструктор (order): цифри додають N-те слово з розсипу, Backspace знімає останнє.
+    if (!answered && c.type === 'order') {
+      if (e.key >= '1' && e.key <= '9') { e.preventDefault(); handlers.onPlaceIndex(+e.key - 1); return; }
+      if (e.key === 'Backspace') { e.preventDefault(); handlers.onUnplaceLast(); return; }
+    }
+    // Цифри — лише для карток з кнопками. grid/type/order вводяться інакше.
+    if (!answered && c.type !== 'grid' && c.type !== 'type' && c.type !== 'order' && e.key >= '1' && e.key <= String(answers.length)) {
       e.preventDefault();
       handlers.onChoose(answers[+e.key - 1]);
       return;
@@ -23,8 +27,8 @@ export function bindKeyboard(handlers) {
       if (ae && ae.tagName === 'BUTTON' && !answered && c.type === 'grid' && ae.classList.contains('cell')) return;
       e.preventDefault();
       if (answered) handlers.onNext();
-      // Перевірка відповіді: grid (кнопка «Перевірити») і type (поле вводу, Enter/«Готово»).
-      else if (c.type === 'grid' || c.type === 'type') handlers.onCheck();
+      // Перевірка: grid (кнопка), type (поле), order (складений рядок).
+      else if (c.type === 'grid' || c.type === 'type' || c.type === 'order') handlers.onCheck();
     }
   });
 }

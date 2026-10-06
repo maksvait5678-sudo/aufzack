@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satzbau — перевірка даних</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 26px 0 8px; }
+  .note { color: #666; margin: 0 0 16px; max-width: 80ch; }
+  .lang { display: flex; gap: 6px; align-items: center; margin: 0 0 14px; color: #666; font-size: .9rem; }
+  .lang button { font: inherit; padding: 4px 12px; border: 1px solid #ccc; background: Canvas; border-radius: 999px; cursor: pointer; color: inherit; }
+  .lang button[aria-pressed="true"] { background: #1c6b1c; border-color: #1c6b1c; color: #fff; }
+  .summary { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0 0 8px; padding: 12px 14px; background: #f4f4f2; border-radius: 10px; }
+  .summary b { font-variant-numeric: tabular-nums; }
+  table { border-collapse: collapse; width: 100%; margin: 0 0 6px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #ddd; vertical-align: top; }
+  @media (prefers-color-scheme: dark) { th, td { border-color: #333; } .summary { background: #222; } .note, .lang { color: #999; } .lang button { border-color: #444; } }
+  th { font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; color: #666; white-space: nowrap; }
+  .uk { color: #444; } @media (prefers-color-scheme: dark) { .uk { color: #bbb; } }
+  .de { font-weight: 600; }
+  .sol { margin: 2px 0; }
+  .sol .tag { font-size: .72rem; padding: 1px 7px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+  .tag.good { background: #d8f0d8; color: #1c6b1c; } .tag.soft { background: #fdeccd; color: #8a5a10; }
+  @media (prefers-color-scheme: dark) { .tag.good { background: #1f3a1f; color: #8fd68f; } .tag.soft { background: #3a2f16; color: #e0b060; } }
+  .solnote { color: #666; font-size: .85rem; }
+  .distr { color: #a33; font-variant-numeric: tabular-nums; }
+  @media (prefers-color-scheme: dark) { .distr { color: #e59; } }
+  .why { color: #666; max-width: 46ch; font-size: .92rem; }
+</style>
+</head>
+<body>
+<div class="lang" id="lang"></div>
+<h1 id="title"></h1>
+<p class="note" id="note"></p>
+<div class="summary" id="summary"></div>
+<div id="sections"></div>
+
+<script type="module">
+import { BLOCKS, SENTENCES } from './js/topics/satzbau.data.js';
+
+const esc = s => String(s).replace(/[&<>]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[x]));
+const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+// Готове речення: перше слово з великої, у кінці — крапка/?.
+const sentence = (order, punct) => esc(cap(order[0]) + (order.length > 1 ? ' ' + order.slice(1).join(' ') : '')) + (punct || '');
+
+const T = {
+  uk: {
+    htmlLang: 'uk',
+    title: 'Satzbau — перевірка даних для вчителя',
+    note: `Кожен рядок — одна картка-речення з <code>js/topics/satzbau.data.js</code>. Показані ВСІ допустимі порядки: <span class="tag good">краще</span> — природний варіант, <span class="tag soft">терпимо</span> — допустимий, але стилістично гірший (гра зараховує й показує нотатку). Зайві слова не входять у жоден порядок. Тренуємо порядок, не регістр: велику першу літеру додає гра.`,
+    cols: { uk: 'Завдання (укр.)', sols: 'Допустимі порядки', distr: 'Зайві слова', why: 'Правило (why — його бачить учень)' },
+    blockName: { b1: 'Простий порядок', b2: 'Інверсія', b3: 'Модальне + Inf', b4: 'Питання', b5: 'Заперечення (nicht)' },
+    tagGood: 'краще', tagSoft: 'терпимо',
+    sum: (n, blocks) => `Речень: <b>${n}</b> · блоків: <b>${blocks}</b>`
+  },
+  de: {
+    htmlLang: 'de',
+    title: 'Satzbau — Datenprüfung für Lehrkräfte',
+    note: `Jede Zeile ist ein Satz aus <code>js/topics/satzbau.data.js</code>. Alle zulässigen Wortstellungen: <span class="tag good">besser</span> — natürliche Variante, <span class="tag soft">tolerierbar</span> — zulässig, aber stilistisch schlechter (das Spiel akzeptiert sie und zeigt eine Notiz). Zusatzwörter gehören zu keiner Lösung. Trainiert wird die Wortstellung, nicht die Groß-/Kleinschreibung: den Anfangsbuchstaben setzt das Spiel.`,
+    cols: { uk: 'Aufgabe (ukr.)', sols: 'Zulässige Wortstellungen', distr: 'Zusatzwörter', why: 'Regel (why — sieht die lernende Person)' },
+    blockName: { b1: 'Einfache Wortstellung', b2: 'Inversion', b3: 'Modalverb + Infinitiv', b4: 'Fragen', b5: 'Verneinung (nicht)' },
+    tagGood: 'besser', tagSoft: 'tolerierbar',
+    sum: (n, blocks) => `Sätze: <b>${n}</b> · Blöcke: <b>${blocks}</b>`
+  }
+};
+
+function solsCell(s, t) {
+  return s.solutions.map(sol => {
+    const tag = sol.good !== false
+      ? `<span class="tag good">${t.tagGood}</span>`
+      : `<span class="tag soft">${t.tagSoft}</span>`;
+    const note = (sol.good === false && sol.note) ? `<div class="solnote">↳ ${esc(sol.note)}</div>` : '';
+    return `<div class="sol"><span class="de">${sentence(sol.order, s.punct)}</span>${tag}${note}</div>`;
+  }).join('');
+}
+
+function render(lang) {
+  const t = T[lang];
+  document.documentElement.lang = t.htmlLang;
+  document.title = t.title;
+  document.getElementById('title').textContent = t.title;
+  document.getElementById('note').innerHTML = t.note;
+
+  const blocksUsed = BLOCKS.filter(b => SENTENCES.some(s => s.block === b.k));
+  document.getElementById('summary').innerHTML = `<span>${t.sum(SENTENCES.length, blocksUsed.length)}</span>`;
+
+  const c = t.cols;
+  const pw = s => esc((lang === 'de' ? s.whyDe : s.why) || s.why || '');
+  const secs = blocksUsed.map(b => {
+    const rows = SENTENCES.filter(s => s.block === b.k).map(s =>
+      `<tr><td class="uk">${esc(s.uk)}</td><td>${solsCell(s, t)}</td>`
+      + `<td class="distr de">${(s.distractors || []).map(esc).join(', ') || '—'}</td>`
+      + `<td class="why">${pw(s)}</td></tr>`
+    ).join('');
+    const head = `<tr><th>${c.uk}</th><th>${c.sols}</th><th>${c.distr}</th><th>${c.why}</th></tr>`;
+    return `<h2>${esc(t.blockName[b.k] || b.label)} <span class="uk">· ${esc(b.rule)}</span></h2>`
+      + `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+  });
+
+  document.getElementById('sections').innerHTML = secs.join('');
+  document.querySelectorAll('#lang button').forEach(btn => btn.setAttribute('aria-pressed', btn.dataset.l === lang));
+}
+
+function currentLang() { return new URLSearchParams(location.search).get('lang') === 'de' ? 'de' : 'uk'; }
+function setLang(lang) {
+  const u = new URL(location);
+  u.searchParams.set('lang', lang);
+  history.replaceState(null, '', u);
+  render(lang);
+}
+document.getElementById('lang').innerHTML = `<span>UK / DE:</span>`
+  + `<button type="button" data-l="uk">UK</button><button type="button" data-l="de">DE</button>`;
+document.querySelectorAll('#lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.l)));
+render(currentLang());
+</script>
+</body>
+</html>

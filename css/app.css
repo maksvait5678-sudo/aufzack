@@ -98,6 +98,19 @@ header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:s
 .type-input.wrong{border-color:var(--bad);color:var(--bad)}
 .type-answer .btn{flex:0 0 auto}
 
+/* Картка order (конструктор речення). Завдання українською; рядок-результат із
+   зарезервованою висотою (не стрибає від першого слова); розсип слів знизу. Великі
+   тапи для телефона. */
+.task-uk{font-size:clamp(1.15rem,4.6vw,1.5rem);font-weight:700;text-align:center;margin:10px 0 2px;color:var(--ink)}
+.built{min-height:62px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;padding:11px 12px;border:2px dashed var(--line);border-radius:16px;background:var(--surface2);margin:8px 0 12px}
+.built-ph{color:var(--muted);font-size:.92rem;margin:auto}
+.bank{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.word{border:1px solid var(--line);border-radius:14px;padding:12px 16px;font-size:1.15rem;font-weight:700;cursor:pointer;background:var(--surface);color:var(--ink);min-height:46px;transition:transform .08s}
+.word:active{transform:scale(.95)}
+.word.placed{background:var(--brand-accent);color:#fff;border-color:transparent}
+.word:disabled{cursor:default}
+.word.placed:disabled{opacity:.92}
+
 .grid{display:grid;grid-template-columns:auto repeat(4,1fr);gap:6px;width:100%;max-width:520px;margin:0 auto}
 .grid .h{font-size:.78rem;color:var(--muted);text-align:center;align-self:center;font-weight:600}
 .grid .rh{text-align:right;padding-right:4px}

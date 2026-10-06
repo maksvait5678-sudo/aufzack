@@ -2,6 +2,8 @@
 // Логіка стану сюди не заходить: контролер передає дані і колбеки.
 
 const esc = s => String(s).replace(/[&<>"]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[x]));
+// Велика перша літера (для показу слова, що стало першим у реченні).
+const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
 
 const rowOf = (topic, k) => topic.matrix.rows.find(r => r.k === k);
 const colOf = (topic, k) => topic.matrix.cols.find(c => c.k === k);
@@ -87,6 +89,21 @@ export function renderCard(cardEl, topic, cur, cardState, handlers) {
     cardEl.querySelectorAll('#step1wrap .pill').forEach(b => b.addEventListener('click', () => handlers.onChoose(b.dataset.a)));
     return;
   }
+
+  // `order` — конструктор речення: завдання українською, рядок-результат згори, розсип
+  // слів знизу. Рядок має зарезервовану висоту (не стрибає при додаванні слів, SPEC-мобільне).
+  if (c.type === 'order') {
+    cardEl.innerHTML = `<div class="kind"><span>${c.kind}</span>${badge}</div>`
+      + `<div class="task-uk">${c.uk}</div>`
+      + `<div class="built" id="built" aria-label="Складене речення"></div>`
+      + `<div class="bank" id="bank" aria-label="Слова"></div>`
+      + `<div style="display:flex;justify-content:center;margin-top:12px"><button class="btn" id="check">Перевірити <small style="opacity:.6">(Enter)</small></button></div>`
+      + `<div class="feedback" id="fb"></div>`;
+    paintOrder(cardEl, handlers.getOrder(), handlers);
+    document.getElementById('check').addEventListener('click', handlers.onCheck);
+    return;
+  }
+
   let body = '';
   if (c.type === 'choice') body = `<div class="big" lang="de">${c.prompt}</div>${chip}`;
   if (c.type === 'sentence') body = `<div class="sentence" lang="de">${c.prompt.replace('___', '<span class="blank" id="blank">&nbsp;</span>')}</div>${chip}`;
@@ -188,6 +205,62 @@ export function showChoiceFeedback(cardEl, topic, card, chosen, ms, fast, ok, on
     nb.addEventListener('click', onNext);
     nb.focus();
   }
+}
+
+// ── Картка `order` (конструктор речення) ───────────────────────────────────────
+// Текст готового речення з канонічних слів: перше слово — з великої, у кінці — крапка/?.
+function orderText(order, punct) {
+  if (!order.length) return '';
+  return esc(cap(order[0]) + (order.length > 1 ? ' ' + order.slice(1).join(' ') : '')) + (punct || '');
+}
+const bestOrder = card => (card.solutions.find(s => s.good !== false) || card.solutions[0]).order;
+
+// Перемалювати рядок-результат і розсип зі стану { placed, bank } (масиви {id,text}).
+// Перше слово в рядку показуємо з великої — інакше речення виглядає неписьменно.
+export function paintOrder(cardEl, order, handlers) {
+  const builtEl = cardEl.querySelector('#built');
+  const bankEl = cardEl.querySelector('#bank');
+  builtEl.innerHTML = order.placed.length
+    ? order.placed.map((it, i) => `<button class="word placed" data-id="${it.id}" lang="de">${esc(i === 0 ? cap(it.text) : it.text)}</button>`).join('')
+    : `<span class="built-ph">Натискай слова, щоб скласти речення</span>`;
+  bankEl.innerHTML = order.bank.map(it => `<button class="word" data-id="${it.id}" lang="de">${esc(it.text)}</button>`).join('');
+  builtEl.querySelectorAll('.word').forEach(b => b.addEventListener('click', () => handlers.onUnplace(b.dataset.id)));
+  bankEl.querySelectorAll('.word').forEach(b => b.addEventListener('click', () => handlers.onPlace(b.dataset.id)));
+}
+
+// Фідбек для order. res = { ok, good, note } з srs.matchOrder. На помилку — правильний
+// порядок + why (правило позиції); на стилістично гірший варіант — зараховано + кращий варіант.
+export function showOrderFeedback(cardEl, topic, card, ms, fast, res, onNext) {
+  cardEl.querySelectorAll('.word').forEach(b => b.disabled = true);
+  const chk = document.getElementById('check');
+  const fb = document.getElementById('fb');
+  const sec = (ms / 1000).toFixed(1);
+  const correct = orderText(bestOrder(card), card.punct);
+  const nextBtn = '<div style="display:flex;justify-content:flex-end"><button class="btn" id="nextBtn">Далі <small style="opacity:.6">(Enter)</small></button></div>';
+  const whyHtml = card.why ? `<div class="why">${card.why}</div>` : '';
+
+  if (res.ok && res.good) {
+    cardEl.classList.add('flash-ok');
+    if (chk) chk.disabled = true;
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text ok">Так · ${sec} с${fast ? '' : ' — повільно, повторимо скоріше'}</span></div>`;
+    fb.classList.add('show');
+    return;
+  }
+  if (res.ok && !res.good) {
+    // Допустимо, але стилістично гірше: зараховуємо й кажемо про це.
+    cardEl.classList.add('flash-ok');
+    if (chk) chk.disabled = true;
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text ok">Зараховано · ${sec} с</span></div>`
+      + (res.note ? `<div class="why">${esc(res.note)}</div>` : '')
+      + `<div class="hint">Природніше: <b lang="de">${correct}</b></div>${nextBtn}`;
+  } else {
+    cardEl.classList.add('flash-bad');
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">Ні — правильний порядок:</span></div>`
+      + `<div class="sentence" lang="de" style="font-size:1.25rem;max-width:none">${correct}</div>${whyHtml}${nextBtn}`;
+  }
+  fb.classList.add('show');
+  const nb = document.getElementById('nextBtn');
+  if (nb) { nb.addEventListener('click', onNext); nb.focus(); }
 }
 
 // Фідбек для type (ввід форми). Матриця praesens абстрактна (особа × група), тож
