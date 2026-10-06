@@ -45,6 +45,7 @@
   </div>
 
   <div class="card" id="card" aria-live="polite"></div>
+  <div class="peek-note" id="peekNote" hidden>Таблиця відкрита — ця відповідь не враховується.</div>
 
   <section class="map">
     <div class="map-top">
@@ -114,11 +115,27 @@ function refresh() {
   renderHeat(heatEl, topic, session.data.cards, peek);
 }
 
+// Позначка біля картки: показуємо, поки стоїть прапорець підглядання (зберігається
+// й після закриття таблиці — до переходу на наступну картку).
+function updatePeekNote() {
+  document.getElementById('peekNote').hidden = !session.peeked;
+}
+
+// Додати у фідбек рядок «не зараховано», коли відповідь була під підгляданням.
+function markFbNotCounted() {
+  if (!session.peeked) return;
+  const fb = document.getElementById('fb');
+  if (fb) fb.insertAdjacentHTML('afterbegin', '<div class="fb-note">Не зараховано: таблиця була відкрита.</div>');
+}
+
 function advance() {
   clearTimeout(autoT);
   sel = new Set();
   cardEl.classList.remove('flash-ok', 'flash-bad');
   const cur = session.next();
+  // Якщо таблиця лишилась відкритою — нова картка теж одразу «під підгляданням».
+  if (cur && peek) session.markPeeked();
+  updatePeekNote();
   if (!cur) { renderDone(cardEl, session.data, topic.cards.length, () => setMode('drill')); return; }
   ts = cur.card.type === 'twostep' ? { phase: 'step1' } : null;
   renderCard(cardEl, topic, cur, session.stateOf(cur.card.id), {
@@ -156,8 +173,9 @@ function choose(a) {
   const ok = a === c.answer;
   const fast = session.answer(c, ok, ms);
   refresh();
-  afterAnswer();
+  if (!session.peeked) afterAnswer();
   showChoiceFeedback(cardEl, topic, c, a, ms, fast, ok, advance);
+  markFbNotCounted();
   if (ok) autoT = setTimeout(advance, fast ? 750 : 1500);
 }
 
@@ -180,8 +198,9 @@ function twoStepChoose(a) {
     ts.phase = 'done';
     const res = session.answerTwoStep(c, { ok1: ts.ok1, ms1: ts.ms1, ok2, ms2 });
     refresh();
-    afterAnswer();
+    if (!session.peeked) afterAnswer();
     showTwoStepStep2(cardEl, topic, c, a, ms2, res.fast2, ok2, res.ok, advance);
+    markFbNotCounted();
     if (res.ok) autoT = setTimeout(advance, res.fast ? 750 : 1500);
   }
 }
@@ -198,8 +217,9 @@ function checkType() {
   const ok = typeMatches(val, c.answer);
   const fast = session.answer(c, ok, ms);
   refresh();
-  afterAnswer();
+  if (!session.peeked) afterAnswer();
   showTypeFeedback(cardEl, topic, c, val, ms, fast, ok, advance);
+  markFbNotCounted();
   if (ok) autoT = setTimeout(advance, fast ? 750 : 1500);
 }
 
@@ -212,8 +232,9 @@ function checkRev() {
   const ok = want.size === sel.size && [...want].every(k => sel.has(k));
   const fast = session.answer(c, ok, ms);
   refresh();
-  afterAnswer();
+  if (!session.peeked) afterAnswer();
   showGridFeedback(cardEl, topic, c, sel, ms, fast, ok, advance);
+  markFbNotCounted();
   if (ok) autoT = setTimeout(advance, fast ? 900 : 1600);
 }
 
@@ -277,6 +298,10 @@ document.getElementById('mDrill').addEventListener('click', () => setMode('drill
 document.getElementById('peek').addEventListener('click', e => {
   peek = !peek;
   e.target.textContent = peek ? 'Сховати таблицю' : 'Підглянути таблицю';
+  // Відкриття таблиці позначає поточну (ще не відповіджену) картку як підглянуту —
+  // її відповідь не зарахується. Закриття прапорець не знімає (robиться лише в next).
+  if (peek) session.markPeeked();
+  updatePeekNote();
   renderHeat(heatEl, topic, session.data.cards, peek);
 });
 document.getElementById('reset').addEventListener('click', () => {
