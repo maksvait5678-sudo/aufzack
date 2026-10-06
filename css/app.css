@@ -7,6 +7,12 @@
   --good:#17985A; --bad:#DC3535;
   /* Кольори артиклів — мнемоніка з навчальної таблиці, НЕ бренд. Не чіпати. */
   --a-der:#16C1E3; --a-die:#BDF45F; --a-das:#D3D6DE; --a-des:#FF6BCB; --a-dem:#FF6040; --a-den:#FFB957;
+  /* Палітра ОСІБ — закріплена за особами назавжди (praesens, майбутні займенники беруть
+     звідси). Глибокі тони, навмисно відмінні від неонової палітри артиклів. Пігулки несуть
+     власний фон + білий текст, тож читаються однаково у світлій і темній темі. (SPEC §5). */
+  --person-ich:#3B6CB5; --person-du:#7E4FB8; --person-er:#1F8E79;
+  --person-wir:#B65C1E; --person-ihr:#B23E66; --person-sie:#5E6B7E;
+  --person-ink:#FFFFFF;
   --pill-ink:#13246A; --prog:#C7C6C1;
 }
 @media (prefers-color-scheme: dark){
@@ -136,6 +142,11 @@ section.map{margin-top:18px;background:var(--surface);border:1px solid var(--lin
 .hc span.pct{font-size:.78rem;color:var(--ink)}
 footer{display:flex;justify-content:space-between;align-items:center;margin-top:14px;color:var(--muted);font-size:.8rem;gap:10px;flex-wrap:wrap}
 .linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0}
+
+/* Позначка «таблиця відкрита — відповідь не враховується» (біля картки і у фідбеку) */
+.peek-note{margin-top:10px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--brand-accent);border-radius:12px;padding:8px 12px;color:var(--ink);font-size:.88rem;font-weight:600}
+.peek-note[hidden]{display:none}
+.fb-note{font-size:.9rem;font-weight:800;color:var(--brand-accent)}
 
 /* Нагадування «збережи прогрес» — ненав'язливий рядок, не модалка */
 .nudge{display:flex;align-items:center;gap:10px;margin-top:14px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--brand-accent);border-radius:14px;padding:10px 14px;color:var(--ink);font-size:.9rem}
