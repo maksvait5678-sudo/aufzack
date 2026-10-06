@@ -75,8 +75,8 @@
 import { getTopic } from './js/topics/index.js';
 import { createSession } from './js/engine/session.js';
 import * as store from './js/engine/store.js';
-import { renderCard, showChoiceFeedback, showGridFeedback, showTwoStepStep1, showTwoStepStep2, renderDone } from './js/ui/render.js';
-import { FAST_STEP1, FAST } from './js/engine/srs.js';
+import { renderCard, showChoiceFeedback, showGridFeedback, showTypeFeedback, showTwoStepStep1, showTwoStepStep2, renderDone } from './js/ui/render.js';
+import { FAST_STEP1, FAST, typeMatches } from './js/engine/srs.js';
 import { renderHeat } from './js/ui/heat.js';
 import { renderStats } from './js/ui/stats.js';
 import { bindKeyboard } from './js/ui/keyboard.js';
@@ -128,8 +128,16 @@ function advance() {
       if (sel.has(k)) { sel.delete(k); el.setAttribute('aria-pressed', 'false'); }
       else { sel.add(k); el.setAttribute('aria-pressed', 'true'); }
     },
-    onCheck: checkRev
+    onCheck: check
   });
+}
+
+// Перевірка відповіді для карток без вибору: grid (клітинки) і type (ввід форми).
+function check() {
+  const cur = session.cur;
+  if (session.answered || !cur) return;
+  if (cur.card.type === 'grid') return checkRev();
+  if (cur.card.type === 'type') return checkType();
 }
 
 // Роутер вибору: двокрокова картка йде своїм шляхом, решта — звичайним choose.
@@ -176,6 +184,23 @@ function twoStepChoose(a) {
     showTwoStepStep2(cardEl, topic, c, a, ms2, res.fast2, ok2, res.ok, advance);
     if (res.ok) autoT = setTimeout(advance, res.fast ? 750 : 1500);
   }
+}
+
+// Картка type: порівняння через typeMatches (без регістру, умлаути як ae/oe/ue/ss —
+// але лише там, де в правильній формі справді є умлаут; див. srs.normType).
+function checkType() {
+  const cur = session.cur;
+  if (session.answered || !cur) return;
+  const c = cur.card;
+  const inp = document.getElementById('typeInput');
+  const val = inp ? inp.value : '';
+  const ms = Date.now() - session.shownAt;
+  const ok = typeMatches(val, c.answer);
+  const fast = session.answer(c, ok, ms);
+  refresh();
+  afterAnswer();
+  showTypeFeedback(cardEl, topic, c, val, ms, fast, ok, advance);
+  if (ok) autoT = setTimeout(advance, fast ? 750 : 1500);
 }
 
 function checkRev() {
@@ -271,7 +296,7 @@ bindKeyboard({
     return cur.card.options || topic.answers;   // choice з власними кнопками (прийменники)
   },
   onChoose,
-  onCheck: checkRev,
+  onCheck: check,
   onNext: advance
 });
 

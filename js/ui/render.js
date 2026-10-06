@@ -1,6 +1,8 @@
 // Рендер картки за типом і фідбек після відповіді. Візуал і тексти — 1:1 з legacy.
 // Логіка стану сюди не заходить: контролер передає дані і колбеки.
 
+const esc = s => String(s).replace(/[&<>"]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[x]));
+
 const rowOf = (topic, k) => topic.matrix.rows.find(r => r.k === k);
 const colOf = (topic, k) => topic.matrix.cols.find(c => c.k === k);
 const rowLabel = (topic, k) => rowOf(topic, k).label;
@@ -89,16 +91,31 @@ export function renderCard(cardEl, topic, cur, cardState, handlers) {
   if (c.type === 'choice') body = `<div class="big" lang="de">${c.prompt}</div>${chip}`;
   if (c.type === 'sentence') body = `<div class="sentence" lang="de">${c.prompt.replace('___', '<span class="blank" id="blank">&nbsp;</span>')}</div>${chip}`;
   if (c.type === 'grid') body = `<div class="big" style="background:${color(topic, c.answer)};color:var(--pill-ink);padding:6px 26px;border-radius:22px">${c.answer}</div><div class="hint">Познач усі клітинки таблиці з цим артиклем</div>${revGrid(topic, c)}`;
+  // `type` — ввід форми з клавіатури (дієвідміна): інфінітив великим, підказка-особа
+  // під ним, необовʼязковий переклад. Поле + «Перевірити» — одразу під промптом (щоб
+  // на телефоні лишались над екранною клавіатурою), carта засувається рушієм нижче.
+  if (c.type === 'type') body = `<div class="big" lang="de">${c.prompt}</div>`
+    + (c.ask ? `<div class="type-cue" lang="de">${c.ask}</div>` : '')
+    + (c.gloss ? `<div class="hint">${c.gloss}</div>` : '');
 
-  const ans = c.type === 'grid'
-    ? `<div style="display:flex;justify-content:center;margin-top:10px"><button class="btn" id="check">Перевірити <small style="opacity:.6">(Enter)</small></button></div>`
-    : pills(topic, c);
+  let ans;
+  if (c.type === 'grid') ans = `<div style="display:flex;justify-content:center;margin-top:10px"><button class="btn" id="check">Перевірити <small style="opacity:.6">(Enter)</small></button></div>`;
+  else if (c.type === 'type') ans = `<div class="type-answer"><input class="type-input" id="typeInput" lang="de" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Форма дієслова" placeholder="форма"><button class="btn" id="check">Перевірити <small style="opacity:.6">(Enter)</small></button></div>`;
+  else ans = pills(topic, c);
 
   cardEl.innerHTML = `<div class="kind"><span>${c.kind}</span>${badge}</div><div class="prompt">${body}</div>${ans}<div class="feedback" id="fb"></div>`;
 
   if (c.type === 'grid') {
     cardEl.querySelectorAll('.cell').forEach(b => b.addEventListener('click', () => handlers.onToggleCell(b.dataset.k, b)));
     document.getElementById('check').addEventListener('click', handlers.onCheck);
+  } else if (c.type === 'type') {
+    const inp = document.getElementById('typeInput');
+    document.getElementById('check').addEventListener('click', handlers.onCheck);
+    // Enter (і «Go»/«Готово» на телефоні) обробляє bindKeyboard глобально — тут слухача
+    // не вішаємо, інакше Enter спрацював би двічі (ввід → вже answered → передчасне «Далі»).
+    // Телефон: фокус відкриває клавіатуру, scrollIntoView тримає поле й кнопку над нею.
+    inp.focus();
+    inp.scrollIntoView({ block: 'center' });
   } else {
     cardEl.querySelectorAll('.pill').forEach(b => b.addEventListener('click', () => handlers.onChoose(b.dataset.a)));
   }
@@ -168,6 +185,42 @@ export function showChoiceFeedback(cardEl, topic, card, chosen, ms, fast, ok, on
     fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">Ні: ${rl} · ${cl} → ${card.answer}</span><span class="hint">${qline.slice(3)}</span></div>${whyHtml}${miniTable(topic, card.cell, chosen)}<div style="display:flex;justify-content:flex-end"><button class="btn" id="nextBtn">Далі <small style="opacity:.6">(Enter)</small></button></div>`;
     fb.classList.add('show');
     const nb = document.getElementById('nextBtn');
+    nb.addEventListener('click', onNext);
+    nb.focus();
+  }
+}
+
+// Фідбек для type (ввід форми). Матриця praesens абстрактна (особа × група), тож
+// міні-таблиці немає — весь фідбек несе правильна форма з підметом і `why` (механізм).
+export function showTypeFeedback(cardEl, topic, card, input, ms, fast, ok, onNext) {
+  const inp = document.getElementById('typeInput');
+  if (inp) inp.disabled = true;
+  const sec = (ms / 1000).toFixed(1);
+  const whyHtml = card.why ? `<div class="why">${card.why}</div>` : '';
+  const phrase = `${card.ask ? card.ask + ' ' : ''}${card.answer}`;   // напр. «du fährst»
+  const fb = document.getElementById('fb');
+
+  if (ok) {
+    cardEl.classList.add('flash-ok');
+    if (inp) inp.classList.add('right');
+    const chk = document.getElementById('check');
+    if (chk) chk.disabled = true;
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text ok">Так, ${esc(phrase)} · ${sec} с${fast ? '' : ' — повільно, повторимо скоріше'}</span></div>${whyHtml}`;
+    fb.classList.add('show');
+    return;
+  }
+  cardEl.classList.add('flash-bad');
+  if (inp) inp.classList.add('wrong');
+  const typed = String(input).trim();
+  const typedHtml = typed ? `<span class="hint">ти ввів: ${esc(typed)}</span>` : '';
+  fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">Ні: ${esc(phrase)}</span>${typedHtml}</div>${whyHtml}`;
+  fb.classList.add('show');
+  // Кнопку «Перевірити» перетворюємо на «Далі» (як у grid): учень читає форму й правило.
+  const chk = document.getElementById('check');
+  if (chk) {
+    chk.innerHTML = 'Далі <small style="opacity:.6">(Enter)</small>';
+    chk.replaceWith(chk.cloneNode(true));
+    const nb = document.getElementById('check');
     nb.addEventListener('click', onNext);
     nb.focus();
   }

@@ -10,7 +10,9 @@ export function bindKeyboard(handlers) {
     const answered = handlers.isAnswered();
     const answers = handlers.getAnswers();
 
-    if (!answered && c.type !== 'grid' && e.key >= '1' && e.key <= String(answers.length)) {
+    // Цифри — лише для карток з кнопками. grid і type вводяться інакше (клітинки / поле),
+    // тож цифри там не перехоплюємо (інакше ламали б набір форми в type-полі).
+    if (!answered && c.type !== 'grid' && c.type !== 'type' && e.key >= '1' && e.key <= String(answers.length)) {
       e.preventDefault();
       handlers.onChoose(answers[+e.key - 1]);
       return;
@@ -21,7 +23,8 @@ export function bindKeyboard(handlers) {
       if (ae && ae.tagName === 'BUTTON' && !answered && c.type === 'grid' && ae.classList.contains('cell')) return;
       e.preventDefault();
       if (answered) handlers.onNext();
-      else if (c.type === 'grid') handlers.onCheck();
+      // Перевірка відповіді: grid (кнопка «Перевірити») і type (поле вводу, Enter/«Готово»).
+      else if (c.type === 'grid' || c.type === 'type') handlers.onCheck();
     }
   });
 }
