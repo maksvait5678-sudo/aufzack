@@ -137,6 +137,11 @@ section.map{margin-top:18px;background:var(--surface);border:1px solid var(--lin
 footer{display:flex;justify-content:space-between;align-items:center;margin-top:14px;color:var(--muted);font-size:.8rem;gap:10px;flex-wrap:wrap}
 .linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0}
 
+/* Позначка «таблиця відкрита — відповідь не враховується» (біля картки і у фідбеку) */
+.peek-note{margin-top:10px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--brand-accent);border-radius:12px;padding:8px 12px;color:var(--ink);font-size:.88rem;font-weight:600}
+.peek-note[hidden]{display:none}
+.fb-note{font-size:.9rem;font-weight:800;color:var(--brand-accent)}
+
 /* Нагадування «збережи прогрес» — ненав'язливий рядок, не модалка */
 .nudge{display:flex;align-items:center;gap:10px;margin-top:14px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--brand-accent);border-radius:14px;padding:10px 14px;color:var(--ink);font-size:.9rem}
 .nudge[hidden]{display:none}
