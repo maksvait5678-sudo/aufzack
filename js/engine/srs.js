@@ -9,7 +9,7 @@ export const IV = [MIN, MIN, 10 * MIN, DAY, 3 * DAY, 7 * DAY, 16 * DAY, 35 * DAY
 export const MAXB = IV.length - 1;
 
 // Ліміт «швидкої» відповіді за типом картки, мс. twostep — поріг ДРУГОГО кроку (вибір артикля).
-export const FAST = { choice: 4000, sentence: 7000, grid: 12000, type: 12000, twostep: 4000 };
+export const FAST = { choice: 4000, sentence: 7000, grid: 12000, type: 12000, twostep: 4000, order: 20000 };
 // Поріг ПЕРШОГО кроку двокрокової картки (бінарний вибір Wo?/Wohin? — тугіший).
 export const FAST_STEP1 = 3000;
 
@@ -24,6 +24,17 @@ export function normType(s) {
 }
 export function typeMatches(input, answer) {
   return normType(input) === normType(answer) && normType(input) !== '';
+}
+
+// Порівняння порядку слів (картка `order`). `placed` — канонічні форми слів у порядку
+// учня; `solutions` — [{ order:[...], good, note }]. Правильних варіантів може бути кілька:
+// точний збіг із good!==false → зараховано як гарний; збіг лише з good:false → зараховано,
+// але стилістично гірше (повертаємо note для фідбеку); інакше — помилка.
+export function matchOrder(placed, solutions) {
+  const eq = s => s.order.length === placed.length && s.order.every((w, i) => w === placed[i]);
+  const hit = solutions.find(s => s.good !== false && eq(s)) || solutions.find(s => eq(s));
+  if (!hit) return { ok: false };
+  return { ok: true, good: hit.good !== false, note: hit.note };
 }
 
 // Помилка швидша за це — радше вгадування: важчий штраф у вазі профілактики.

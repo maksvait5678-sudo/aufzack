@@ -76,8 +76,8 @@
 import { getTopic } from './js/topics/index.js';
 import { createSession } from './js/engine/session.js';
 import * as store from './js/engine/store.js';
-import { renderCard, showChoiceFeedback, showGridFeedback, showTypeFeedback, showTwoStepStep1, showTwoStepStep2, renderDone } from './js/ui/render.js';
-import { FAST_STEP1, FAST, typeMatches } from './js/engine/srs.js';
+import { renderCard, showChoiceFeedback, showGridFeedback, showTypeFeedback, showOrderFeedback, paintOrder, showTwoStepStep1, showTwoStepStep2, renderDone } from './js/ui/render.js';
+import { FAST_STEP1, FAST, typeMatches, matchOrder } from './js/engine/srs.js';
 import { renderHeat } from './js/ui/heat.js';
 import { renderStats } from './js/ui/stats.js';
 import { bindKeyboard } from './js/ui/keyboard.js';
@@ -109,6 +109,10 @@ const statEls = {
 };
 
 let peek = false, autoT = null, sel = new Set(), ts = null; // ts — стан двокрокової картки
+let order = null; // order — транзієнтний стан конструктора { placed, bank } (масиви {id,text})
+
+// Фішер-Єйтс: перемішати розсип слів (детермінованість тут не потрібна).
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
 function refresh() {
   renderStats(statEls, topic, session.data);
@@ -138,6 +142,10 @@ function advance() {
   updatePeekNote();
   if (!cur) { renderDone(cardEl, session.data, topic.cards.length, () => setMode('drill')); return; }
   ts = cur.card.type === 'twostep' ? { phase: 'step1' } : null;
+  // Конструктор: створюємо екземпляри слів (id+text) з банку картки, перемішуємо; усі в розсипі.
+  order = cur.card.type === 'order'
+    ? { placed: [], bank: shuffle(cur.card.bank.map((text, i) => ({ id: String(i), text }))) }
+    : null;
   renderCard(cardEl, topic, cur, session.stateOf(cur.card.id), {
     onChoose,
     onToggleCell: (k, el) => {
@@ -145,16 +153,44 @@ function advance() {
       if (sel.has(k)) { sel.delete(k); el.setAttribute('aria-pressed', 'false'); }
       else { sel.add(k); el.setAttribute('aria-pressed', 'true'); }
     },
+    getOrder: () => order,
+    onPlace: id => moveWord(id, order.bank, order.placed),
+    onUnplace: id => moveWord(id, order.placed, order.bank),
     onCheck: check
   });
 }
 
-// Перевірка відповіді для карток без вибору: grid (клітинки) і type (ввід форми).
+// Перенести слово між розсипом і рядком (конструктор). Після відповіді — заблоковано.
+function moveWord(id, from, to) {
+  if (session.answered || !order) return;
+  const i = from.findIndex(w => w.id === id);
+  if (i < 0) return;
+  to.push(from.splice(i, 1)[0]);
+  paintOrder(cardEl, order, { getOrder: () => order, onPlace: id => moveWord(id, order.bank, order.placed), onUnplace: id => moveWord(id, order.placed, order.bank) });
+}
+
+// Перевірка відповіді для карток без вибору: grid (клітинки), type (ввід форми), order (порядок).
 function check() {
   const cur = session.cur;
   if (session.answered || !cur) return;
   if (cur.card.type === 'grid') return checkRev();
   if (cur.card.type === 'type') return checkType();
+  if (cur.card.type === 'order') return checkOrder();
+}
+
+// Картка order: порівняння порядку складених слів з усіма допустимими варіантами (srs.matchOrder).
+function checkOrder() {
+  const cur = session.cur;
+  if (session.answered || !cur || !order || !order.placed.length) return;
+  const c = cur.card;
+  const ms = Date.now() - session.shownAt;
+  const res = matchOrder(order.placed.map(w => w.text), c.solutions);
+  const fast = session.answer(c, res.ok, ms);
+  refresh();
+  if (!session.peeked) afterAnswer();
+  showOrderFeedback(cardEl, topic, c, ms, fast, res, advance);
+  markFbNotCounted();
+  if (res.ok && res.good) autoT = setTimeout(advance, fast ? 900 : 1600);
 }
 
 // Роутер вибору: двокрокова картка йде своїм шляхом, решта — звичайним choose.
@@ -322,7 +358,10 @@ bindKeyboard({
   },
   onChoose,
   onCheck: check,
-  onNext: advance
+  onNext: advance,
+  // Конструктор (order): клавіатура — цифри додають слово з розсипу, Backspace знімає останнє.
+  onPlaceIndex: i => { if (order && !session.answered && order.bank[i]) moveWord(order.bank[i].id, order.bank, order.placed); },
+  onUnplaceLast: () => { if (order && !session.answered && order.placed.length) moveWord(order.placed[order.placed.length - 1].id, order.placed, order.bank); }
 });
 
 setInterval(() => {
