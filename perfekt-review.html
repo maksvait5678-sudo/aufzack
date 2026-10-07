@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfekt — перевірка даних</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 26px 0 8px; }
+  .note { color: #666; margin: 0 0 16px; max-width: 82ch; }
+  .lang { display: flex; gap: 6px; align-items: center; margin: 0 0 14px; color: #666; font-size: .9rem; }
+  .lang button { font: inherit; padding: 4px 12px; border: 1px solid #ccc; background: Canvas; border-radius: 999px; cursor: pointer; color: inherit; }
+  .lang button[aria-pressed="true"] { background: #1c6b1c; border-color: #1c6b1c; color: #fff; }
+  .summary { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0 0 8px; padding: 12px 14px; background: #f4f4f2; border-radius: 10px; }
+  .summary b { font-variant-numeric: tabular-nums; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; margin: 0 0 6px; max-width: 94ch; }
+  th, td { text-align: left; padding: 5px 10px; border-bottom: 1px solid #ddd; vertical-align: top; }
+  @media (prefers-color-scheme: dark) { th, td { border-color: #333; } .summary { background: #222; } .note, .lang { color: #999; } .lang button { border-color: #444; } }
+  th { font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; color: #666; white-space: nowrap; }
+  .inf { font-weight: 600; white-space: nowrap; }
+  .uk { color: #666; font-weight: 400; }
+  .de b { color: #1c6b1c; }
+  @media (prefers-color-scheme: dark) { .de b { color: #8fd68f; } }
+  .aux-sein b { color: #9c4a10; }      /* sein — підсвічено (рідкісне, несе правило) */
+  @media (prefers-color-scheme: dark) { .aux-sein b { color: #e0a060; } }
+  .why { color: #666; max-width: 44ch; font-size: .92rem; }
+  .todo td { background: #fde2e2; }
+  @media (prefers-color-scheme: dark) { .todo td { background: #3a1f1f; } }
+  .badge { font-size: .74rem; padding: 1px 7px; border-radius: 999px; background: #fde2e2; color: #a33; margin-left: 6px; }
+  @media (prefers-color-scheme: dark) { .badge { background: #4a1f1f; color: #e59; } }
+  .badge.dual { background: #fff0d6; color: #8a5a10; }
+  @media (prefers-color-scheme: dark) { .badge.dual { background: #3a2f1a; color: #e0b060; } }
+  .notetext { color: #8a5a10; font-size: .86rem; max-width: 44ch; }
+  @media (prefers-color-scheme: dark) { .notetext { color: #e0b060; } }
+</style>
+</head>
+<body>
+<div class="lang" id="lang"></div>
+<h1 id="title"></h1>
+<p class="note" id="note"></p>
+<div class="summary" id="summary"></div>
+<div id="sections"></div>
+
+<script type="module">
+import { GROUPS, VERBS, auxWhyFor, ppWhyFor } from './js/topics/perfekt.data.js';
+
+const esc = s => String(s).replace(/[&<>]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[x]));
+
+const T = {
+  uk: {
+    htmlLang: 'uk',
+    title: 'Perfekt — перевірка даних для вчителя',
+    note: `Кожне дієслово з <code>js/topics/perfekt.data.js</code> дає дві картки: вибір допоміжного (haben/sein, тип <code>choice</code>) і ввід Partizip II (тип <code>type</code>, порівняння без регістру; умлаути можна набирати як <code>ae/oe/ue/ss</code>). Форма «Partizip II» — те, що гра прийме за правильну відповідь; sein підсвічено (рідкісне, несе правило). Карта засвоєння теми — формотворення Partizip × haben/sein.`,
+    cols: { inf: 'Інфінітив', aux: 'Допом.', part: 'Partizip II', whyA: 'Правило haben/sein', whyP: 'Правило Partizip' },
+    group: { reg: 'Правильні (ge- + корінь + -t)', strong: 'Сильні (ge- + змінений корінь + -en)', noge: 'Без ge- (-ieren, невідокремлювані префікси)', sep: 'Відокремлювані (ge- всередині)' },
+    sein: '1. haben vs sein — sein-дієслова (рух / зміна стану / виняток)',
+    todoTitle: 'Поза межами теми (у гру не йдуть)',
+    sum: (verbs, cards, todo) => `Дієслів у грі: <b>${verbs}</b> · карток: <b>${cards}</b> (×2 на дієслово) · todo: <b>${todo}</b>`,
+    dual: 'також haben'
+  },
+  de: {
+    htmlLang: 'de',
+    title: 'Perfekt — Datenprüfung für Lehrkräfte',
+    note: `Jedes Verb aus <code>js/topics/perfekt.data.js</code> ergibt zwei Karten: Wahl des Hilfsverbs (haben/sein, Typ <code>choice</code>) und Eingabe des Partizip II (Typ <code>type</code>, ohne Groß-/Kleinschreibung; Umlaute auch als <code>ae/oe/ue/ss</code>). Die Form „Partizip II“ zeigt, was das Spiel akzeptiert; sein ist hervorgehoben (selten, trägt die Regel). Die Lernkarte: Partizip-Bildung × haben/sein.`,
+    cols: { inf: 'Infinitiv', aux: 'Hilfsverb', part: 'Partizip II', whyA: 'Regel haben/sein', whyP: 'Regel Partizip' },
+    group: { reg: 'Regelmäßig (ge- + Stamm + -t)', strong: 'Stark (ge- + geänderter Stamm + -en)', noge: 'Ohne ge- (-ieren, untrennbare Präfixe)', sep: 'Trennbar (ge- in der Mitte)' },
+    sein: '1. haben vs sein — sein-Verben (Bewegung / Zustandsänderung / Ausnahme)',
+    todoTitle: 'Außerhalb des Themas (nicht im Spiel)',
+    sum: (verbs, cards, todo) => `Verben im Spiel: <b>${verbs}</b> · Karten: <b>${cards}</b> (×2 pro Verb) · todo: <b>${todo}</b>`,
+    dual: 'auch haben'
+  }
+};
+
+function verbRow(v, t, lang) {
+  const note = lang === 'de' ? v.noteDe : v.noteUk;
+  const auxCls = v.aux === 'sein' ? 'de aux-sein' : 'de';
+  const dualBadge = v.aux2 ? `<span class="badge dual">${t.dual}</span>` : '';
+  const todoBadge = v.todo ? `<span class="badge">todo</span>` : '';
+  return `<tr${v.todo ? ' class="todo"' : ''}>`
+    + `<td class="inf">${esc(v.inf)} <span class="uk">— ${esc(v.uk)}</span>${todoBadge}</td>`
+    + `<td class="${auxCls}"><b>${esc(v.aux)}</b>${dualBadge}</td>`
+    + `<td class="de"><b>${esc(v.part)}</b></td>`
+    + `<td class="why">${esc(auxWhyFor(v, lang))}${note ? `<div class="notetext">${esc(note)}</div>` : ''}</td>`
+    + `<td class="why">${esc(ppWhyFor(v, lang))}</td>`
+    + `</tr>`;
+}
+
+function table(verbs, t, lang) {
+  const head = `<tr><th>${t.cols.inf}</th><th>${t.cols.aux}</th><th>${t.cols.part}</th><th>${t.cols.whyA}</th><th>${t.cols.whyP}</th></tr>`;
+  return `<table><thead>${head}</thead><tbody>${verbs.map(v => verbRow(v, t, lang)).join('')}</tbody></table>`;
+}
+
+function render(lang) {
+  const t = T[lang];
+  document.documentElement.lang = t.htmlLang;
+  document.title = t.title;
+  document.getElementById('title').textContent = t.title;
+  document.getElementById('note').innerHTML = t.note;
+
+  const play = VERBS.filter(v => !v.todo);
+  const todo = VERBS.filter(v => v.todo);
+  document.getElementById('summary').innerHTML = `<span>${t.sum(play.length, play.length * 2, todo.length)}</span>`;
+
+  const secs = [];
+  // Блок 1 — sein-дієслова (вводяться першими, несуть правило вибору).
+  const seinVerbs = play.filter(v => v.aux === 'sein');
+  secs.push(`<h2>${t.sein}</h2>` + table(seinVerbs, t, lang));
+  // Решта — за групами формотворення Partizip (усі дієслова групи, щоб було видно обидва допоміжні).
+  GROUPS.forEach(g => {
+    const vs = play.filter(v => v.group === g.k);
+    if (!vs.length) return;
+    secs.push(`<h2>${t.group[g.k]}</h2>` + table(vs, t, lang));
+  });
+  if (todo.length) secs.push(`<h2>${t.todoTitle}</h2>` + table(todo, t, lang));
+
+  document.getElementById('sections').innerHTML = secs.join('');
+  document.querySelectorAll('#lang button').forEach(b => b.setAttribute('aria-pressed', b.dataset.l === lang));
+}
+
+function currentLang() { return new URLSearchParams(location.search).get('lang') === 'de' ? 'de' : 'uk'; }
+function setLang(lang) {
+  const u = new URL(location);
+  u.searchParams.set('lang', lang);
+  history.replaceState(null, '', u);
+  render(lang);
+}
+document.getElementById('lang').innerHTML = `<span>UK / DE:</span>`
+  + `<button type="button" data-l="uk">UK</button><button type="button" data-l="de">DE</button>`;
+document.querySelectorAll('#lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.l)));
+render(currentLang());
+</script>
+</body>
+</html>

@@ -105,7 +105,10 @@ export function renderCard(cardEl, topic, cur, cardState, handlers) {
   }
 
   let body = '';
-  if (c.type === 'choice') body = `<div class="big" lang="de">${c.prompt}</div>${chip}`;
+  // `choice` може нести укр. переклад (`gloss`) під німецьким словом — контекст для
+  // вибору (напр. perfekt: haben/sein). Наявні choice-теми gloss не мають — рендер той самий.
+  if (c.type === 'choice') body = `<div class="big" lang="de">${c.prompt}</div>`
+    + (c.gloss ? `<div class="hint">${esc(c.gloss)}</div>` : '') + chip;
   if (c.type === 'sentence') body = `<div class="sentence" lang="de">${c.prompt.replace('___', '<span class="blank" id="blank">&nbsp;</span>')}</div>${chip}`;
   if (c.type === 'grid') body = `<div class="big" style="background:${color(topic, c.answer)};color:var(--pill-ink);padding:6px 26px;border-radius:22px">${c.answer}</div><div class="hint">Познач усі клітинки таблиці з цим артиклем</div>${revGrid(topic, c)}`;
   // `type` — ввід форми з клавіатури (дієвідміна): інфінітив великим, підказка-особа
