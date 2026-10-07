@@ -20,10 +20,15 @@ export const GROUPS = [
   { k: 'sep',    label: 'відокремл.',  hint: 'ge- всередині' }
 ];
 
-// ── Допоміжне дієслово (стовпці карти засвоєння) ─────────────────────────────
-export const AUX = [
-  { k: 'haben', label: 'haben' },
-  { k: 'sein',  label: 'sein' }
+// ── Карта засвоєння: один стовпець, кожен рядок — окрема навичка (SPEC §6) ────
+// Форма Partizip НЕ залежить від допоміжного, тож два стовпці (формотворення ×
+// haben/sein) показували б той самий маркер двічі — вдавали б два знання. Натомість
+// один стовпець і 6 рядків: 4 типи формотворення Partizip + 2 рядки вибору допоміжного.
+export const HEAT_COL = { k: 'x', label: 'правило' };
+export const HEAT_ROWS = [
+  ...GROUPS,                                                              // Partizip: 4 типи
+  { k: 'aux_sein',  label: 'допом.: sein',  hint: 'рух / зміна стану' },  // haben/sein: вибір
+  { k: 'aux_haben', label: 'допом.: haben', hint: 'дія без руху' }
 ];
 
 // ── Дієслова ─────────────────────────────────────────────────────────────────
@@ -153,8 +158,12 @@ const PP_WHY_DE = {
 export const auxWhyFor = (v, lang) => (lang === 'de' ? AUX_WHY_DE : AUX_WHY_UK)[auxKey(v)];
 export const ppWhyFor  = (v, lang) => (lang === 'de' ? PP_WHY_DE : PP_WHY_UK)[v.pp];
 
-// ── Патерн для peek у карті засвоєння (matrix.value) ─────────────────────────
+// ── Маркер рядка для peek у карті засвоєння (matrix.value) ────────────────────
 // Карта нейтральна (SPEC §6): кольорів немає (type/choice-тема). Peek показує маркер
-// формотворення рядка; стовпець (haben/sein) маркер не змінює — патерн той самий.
-const GROUP_MARK = { reg: 'ge-…-t', strong: 'ge-…-en', noge: 'без ge-', sep: 'ge- всер.' };
-export const cellMark = (groupK /* , auxK */) => GROUP_MARK[groupK];
+// навички рядка: для Partizip-рядків — патерн формотворення, для рядків допоміжного —
+// саме допоміжне (sein / haben).
+const ROW_MARK = {
+  reg: 'ge-…-t', strong: 'ge-…-en', noge: 'без ge-', sep: 'ge- всер.',
+  aux_sein: 'sein', aux_haben: 'haben'
+};
+export const cellMark = rowK => ROW_MARK[rowK];
