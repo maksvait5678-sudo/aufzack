@@ -158,12 +158,34 @@ const PP_WHY_DE = {
 export const auxWhyFor = (v, lang) => (lang === 'de' ? AUX_WHY_DE : AUX_WHY_UK)[auxKey(v)];
 export const ppWhyFor  = (v, lang) => (lang === 'de' ? PP_WHY_DE : PP_WHY_UK)[v.pp];
 
-// ── Маркер рядка для peek у карті засвоєння (matrix.value) ────────────────────
-// Карта нейтральна (SPEC §6): кольорів немає (type/choice-тема). Peek показує маркер
-// навички рядка: для Partizip-рядків — патерн формотворення, для рядків допоміжного —
-// саме допоміжне (sein / haben).
-const ROW_MARK = {
-  reg: 'ge-…-t', strong: 'ge-…-en', noge: 'без ge-', sep: 'ge- всер.',
-  aux_sein: 'sein', aux_haben: 'haben'
+// ── Peek у карті засвоєння (matrix.value) ────────────────────────────────────
+// Карта нейтральна (SPEC §6): кольорів немає (type/choice-тема). Абстрактний патерн уже
+// стоїть у підписі рядка (hint), тож peek дає КОНКРЕТИКУ з даних теми, а не дублює патерн:
+//   - рядки формотворення → 2-3 реальні приклади inf → Partizip;
+//   - рядок «допом.: sein» → ПЕРЕЛІК усіх sein-дієслів теми (короткий, його треба знати
+//     списком — це головна шпаргалка теми);
+//   - рядок «допом.: haben» → «всі інші» (їх більшість, список марний).
+const partOf = inf => (VERBS.find(v => v.inf === inf) || {}).part;
+// Приклади формотворення — курований набір (форми беруться з даних, не вигадуються):
+// по кілька дієслів на тип, що показують підтипи (plain + -et; -ieren + префікс; тощо).
+const EX_INF = {
+  reg:    ['machen', 'kaufen', 'arbeiten'],     // ge-…-t, зокрема -et після -t/-d
+  strong: ['gehen', 'essen', 'sprechen'],       // ge-…-en зі зміною кореня
+  noge:   ['studieren', 'verstehen', 'bekommen'], // -ieren і невідокремлювані префікси
+  sep:    ['aufstehen', 'einkaufen', 'anrufen']   // ge- всередину
 };
-export const cellMark = rowK => ROW_MARK[rowK];
+const SEIN_LIST = VERBS.filter(v => !v.todo && v.aux === 'sein').map(v => v.inf);
+
+// Peek рендериться як HTML у клітинці (heat вставляє matrix.value як є, без екранування,
+// як у satzbau). Один стовпець карти — клітинка широка, приклади/перелік вміщаються.
+const peekBox = html => `<span style="font-size:.72rem;font-weight:500;color:var(--muted);white-space:normal;line-height:1.35;display:block;padding:3px 7px;text-align:left">${html}</span>`;
+const exLines = infs => infs.map(inf => `${inf} → <b style="color:var(--ink);font-weight:700">${partOf(inf)}</b>`).join('<br>');
+const ROW_PEEK = {
+  reg:    peekBox(exLines(EX_INF.reg)),
+  strong: peekBox(exLines(EX_INF.strong)),
+  noge:   peekBox(exLines(EX_INF.noge)),
+  sep:    peekBox(exLines(EX_INF.sep)),
+  aux_sein:  peekBox(`<b style="color:var(--ink);font-weight:700">${SEIN_LIST.join(', ')}</b>`),
+  aux_haben: peekBox('всі інші')
+};
+export const cellMark = rowK => ROW_PEEK[rowK];
