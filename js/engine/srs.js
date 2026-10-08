@@ -128,11 +128,11 @@ export function pick(cards, states, { mode, recent, now, rng = Math.random }) {
   const nr = c => !rec.includes(c.id);
   const byUrg = (a, b) => (st(a.id).b - st(b.id).b) || (st(a.id).due - st(b.id).due);
 
-  // Перемежування — властивість ЖИВОЇ черги, не лише масиву введення. Прострочені картки
-  // сортуються за (рівень, due) і не дивляться на відповідь, тож у користувача зі старим
-  // прогресом однакові відповіді верталися пачками (серія 61 die підряд). Серед відсортованих
+  // Перемежування — властивість ЖИВОЇ черги (і повторень, і введення нових карток). Пули,
+  // що сортуються за (рівень, due), і масив введення нових не дивляться на відповідь, тож
+  // однакові відповіді верталися пачками (серія 61 die у genus; 20+ sein у perfekt). Серед
   // кандидатів беремо першого, чия відповідь не дасть 3-ю підряд однакову; якщо різних немає —
-  // лишаємо найтерміновішого (порядок рівня/due не порушуємо, коли альтернативи бракує).
+  // лишаємо першого за порядком (рівень/due/послідовність теми не порушуємо без потреби).
   const answerOf = id => { const c = cards.find(x => x.id === id); return c && c.answer; };
   const last2 = recent.slice(-2).map(answerOf);
   const clustered = last2.length === 2 && last2[0] != null && last2[0] === last2[1];
@@ -149,28 +149,43 @@ export function pick(cards, states, { mode, recent, now, rng = Math.random }) {
     return { card: pool[pool.length - 1] };
   }
 
-  // Режим «Навчання», по порядку пріоритету:
-  // 1. Прострочені, крім останніх показаних; менший рівень → раніший due.
+  // Режим «Навчання». Збираємо кандидатів у порядку пріоритету й одним проходом беремо
+  // першого, чия відповідь не дасть 3-ю підряд однакову (pickNoRun). Збір у список (а не ранній
+  // return з кожного пулу) робить перемежування НАСКРІЗНИМ між пулами: якщо весь пул прострочених
+  // має однакову відповідь, а нова/рання картка — іншу, беремо її, а не тягнемо серію далі.
+  // (Ранні return ламалися саме так: прострочені всі die → серія, хоча нова das була доступна.)
   const due = intro.filter(c => st(c.id).due <= now);
   const dueNr = due.filter(nr).sort(byUrg);
-  if (dueNr.length) return { card: pickNoRun(dueNr) };
-
   const learning = intro.filter(c => st(c.id).b <= 2);
-  // У ліміт «6 у роботі» relearn-картки не рахуємо: інакше вони забивають ліміт і
-  // блокують введення нових, поки перевчання не почне зніматись (а це ≥ 10 хв).
+  // У ліміт «6 у роботі» relearn-картки не рахуємо: інакше вони забивають ліміт і блокують
+  // введення нових, поки перевчання не почне зніматись (а це ≥ 10 хв).
   const working = learning.filter(c => !st(c.id).relearn);
-  const nextNew = cards.find(c => !st(c.id));
-  // 2. Нова картка, якщо в роботі менше 6.
-  if (nextNew && working.length < 6) return { card: nextNew, isNew: true };
-  // 3. Дострокове повторення картки з рівнем ≤ 1, крім останніх показаних і крім relearn
-  //    (дострокова поява ламала б 10-хвилинне рознесення relearn — глухий цикл без прогресу).
+  // Нові картки — у порядку масиву (послідовність задає тема). Серед невведених одразу беремо
+  // ту, що не продовжить серію, щоб тема з однаковими відповідями підряд на початку масиву
+  // (genus, perfekt) не давала довгої серії ще на етапі введення.
+  const newPool = cards.filter(c => !st(c.id));
+  const nextNew = newPool.length ? pickNoRun(newPool) : null;
   const early = learning.filter(c => st(c.id).b <= 1 && nr(c) && !st(c.id).relearn).sort((a, b) => st(a.id).due - st(b.id).due);
-  if (early.length) return { card: pickNoRun(early) };
-  // 4. Нова картка, навіть якщо ліміт у роботі перевищено.
-  if (nextNew) return { card: nextNew, isNew: true };
-  // 5. Найближча за due в роботі.
   const b2 = learning.filter(nr).sort((a, b) => st(a.id).due - st(b.id).due);
-  if (b2.length) return { card: pickNoRun(b2) };
-  if (due.length) return { card: due.sort(byUrg)[0] };
-  return null;
+
+  // Кандидати в порядку пріоритету (SPEC §3): 1 прострочені · 2 нова (якщо в роботі < 6) ·
+  // 3 дострокове (рівень ≤ 1) · 4 нова (понад ліміт) · 5 найближча в роботі · запас — прострочені.
+  const ordered = [];
+  const seen = new Set();
+  const add = (card, isNew) => {
+    if (!card || seen.has(card.id)) return;
+    seen.add(card.id);
+    ordered.push(isNew ? { card, isNew: true } : { card });
+  };
+  dueNr.forEach(c => add(c));
+  if (working.length < 6) add(nextNew, true);
+  early.forEach(c => add(c));
+  add(nextNew, true);
+  b2.forEach(c => add(c));
+  due.slice().sort(byUrg).forEach(c => add(c));   // запас: прострочені, вже без «крім останніх»
+
+  if (!ordered.length) return null;
+  // Наскрізне перемежування: перший кандидат з іншою відповіддю; якщо різних немає — найперший
+  // (пріоритет/послідовність теми не порушуємо без потреби — лише щоб не дати 3-тю підряд).
+  return (clustered && ordered.find(o => o.card.answer !== last2[0])) || ordered[0];
 }
