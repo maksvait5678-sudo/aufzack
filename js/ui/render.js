@@ -104,6 +104,38 @@ export function renderCard(cardEl, topic, cur, cardState, handlers) {
     return;
   }
 
+  // `word` — слово-картка теми лексики: вигляд залежить від СХОДИНКИ (зі стану картки).
+  // 0/1 — вибір з 4 (дистрактори того ж pos), 2 — ввід німецької форми. Плюс кнопка
+  // «Не знаю» на всіх сходинках. Вигляд дає сама тема через `view` (capability, не id-теми).
+  if (c.type === 'word') {
+    const step = cardState ? (cardState.step || 0) : 0;
+    const view = topic.view(c, step);
+    if (handlers.onWordView) handlers.onWordView(view);
+    const stepBadge = `<span class="badge">сходинка ${step + 1}/3</span>`;
+    const body = `<div class="big" lang="${view.promptLang}">${esc(view.prompt)}</div>`
+      + (view.cue ? `<div class="type-cue">${esc(view.cue)}</div>` : '');
+    let ans;
+    if (view.mode === 'choice') {
+      ans = `<div class="answers" style="--ans-cols:${view.options.length}">`
+        + view.options.map((o, i) => `<button class="pill plain" data-a="${esc(o)}"><kbd>${i + 1}</kbd>${esc(o)}</button>`).join('')
+        + `</div>`;
+    } else {
+      ans = `<div class="type-answer"><input class="type-input" id="typeInput" lang="de" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Німецьке слово" placeholder="слово з артиклем"><button class="btn" id="check">Перевірити <small style="opacity:.6">(Enter)</small></button></div>`;
+    }
+    const dunno = `<div style="display:flex;justify-content:center;margin-top:10px"><button class="linkbtn" id="dunno">Не знаю</button></div>`;
+    cardEl.innerHTML = `<div class="kind"><span>${c.kind}</span>${badge}${stepBadge}</div><div class="prompt">${body}</div>${ans}${dunno}<div class="feedback" id="fb"></div>`;
+    if (view.mode === 'choice') {
+      cardEl.querySelectorAll('.pill').forEach(b => b.addEventListener('click', () => handlers.onChoose(b.dataset.a)));
+    } else {
+      const inp = document.getElementById('typeInput');
+      document.getElementById('check').addEventListener('click', handlers.onCheck);
+      inp.focus();
+      inp.scrollIntoView({ block: 'center' });
+    }
+    document.getElementById('dunno').addEventListener('click', handlers.onDunno);
+    return;
+  }
+
   let body = '';
   // `choice` може нести укр. переклад (`gloss`) під німецьким словом — контекст для
   // вибору (напр. perfekt: haben/sein). Наявні choice-теми gloss не мають — рендер той самий.
@@ -300,6 +332,60 @@ export function showTypeFeedback(cardEl, topic, card, input, ms, fast, ok, onNex
     nb.addEventListener('click', onNext);
     nb.focus();
   }
+}
+
+// Фідбек слова-картки (тема лексики). step — сходинка, на якій ставилося питання.
+// res = { ok, articleOnly, dunno }. payload — обране/введене. Дає повну відповідь
+// «der Tisch — стіл» і альтернативні значення; на «не знаю» — нотатка про скидання.
+export function showWordFeedback(cardEl, topic, card, step, res, payload, ms, fast, onNext) {
+  const sec = (ms / 1000).toFixed(1);
+  const fb = document.getElementById('fb');
+  const correct = step === 0 ? card.uk : card.de;
+  const shown = step === 0 ? `${esc(card.de)} — ${esc(card.uk)}` : esc(card.de);
+  const altHtml = card.alt && card.alt.length
+    ? `<div class="hint">також: ${card.alt.map(a => esc(a.uk)).join(', ')}</div>` : '';
+
+  // Заблокувати елементи вводу й підсвітити вибір.
+  cardEl.querySelectorAll('.pill').forEach(b => {
+    b.disabled = true;
+    const x = b.dataset.a;
+    if (x === correct) b.classList.add('right');
+    else if (x === payload) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+  const inp = document.getElementById('typeInput');
+  if (inp) inp.disabled = true;
+  const dunnoBtn = document.getElementById('dunno');
+  if (dunnoBtn) dunnoBtn.remove();
+
+  const nextBtn = '<div style="display:flex;justify-content:flex-end"><button class="btn" id="nextBtn">Далі <small style="opacity:.6">(Enter)</small></button></div>';
+
+  if (res.dunno) {
+    cardEl.classList.add('flash-bad');
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text">${shown}</span></div>${altHtml}<div class="why">Нічого страшного — починаємо це слово спочатку (перша сходинка).</div>${nextBtn}`;
+  } else if (res.ok) {
+    cardEl.classList.add('flash-ok');
+    if (inp) inp.classList.add('right');
+    const chk = document.getElementById('check');
+    if (chk) chk.disabled = true;
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text ok">Так, ${shown} · ${sec} с${fast ? '' : ' — повільно, повторимо скоріше'}</span></div>${altHtml}`;
+  } else if (res.articleOnly) {
+    // Слово правильне — лише бракує артикля. Помилка для розкладу, але сходинку не знижено.
+    cardEl.classList.add('flash-bad');
+    if (inp) inp.classList.add('wrong');
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">Слово правильне — бракує артикля: ${esc(card.de)}</span></div>${altHtml}<div class="why">Іменник вчимо разом з артиклем. Сходинку не знижено.</div>${nextBtn}`;
+  } else {
+    cardEl.classList.add('flash-bad');
+    if (inp) inp.classList.add('wrong');
+    const typed = (payload && step === 2) ? `<span class="hint">ти ввів: ${esc(String(payload).trim())}</span>` : '';
+    fb.innerHTML = `<div class="fb-line"><span class="fb-text bad">Ні: ${shown}</span>${typed}</div>${altHtml}${nextBtn}`;
+  }
+  fb.classList.add('show');
+
+  // На сходинці 2 кнопку «Перевірити» прибираємо (її місце бере «Далі»).
+  if (!res.ok) { const chk = document.getElementById('check'); if (chk) chk.remove(); }
+  const nb = document.getElementById('nextBtn');
+  if (nb) { nb.addEventListener('click', onNext); nb.focus(); }
 }
 
 // Двокрокова картка, крок 1: позначити Wo?/Wohin?, показати ПРАВИЛО (зміна локації —
