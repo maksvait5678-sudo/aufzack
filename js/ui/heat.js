@@ -10,7 +10,7 @@ export function renderHeat(heatEl, topic, states, peek) {
   if (topic.heatReach) return renderHeatReach(heatEl, topic, st);
   // Кількість колонок під матрицю теми (artikel — 4 роди, genus — 3 роди).
   heatEl.style.setProperty('--heat-cols', topic.matrix.cols.length);
-  let h = `<div></div>${topic.matrix.cols.map(g => `<div class="h">${g.label}</div>`).join('')}`;
+  let h = `<div class="corner"></div>${topic.matrix.cols.map(g => `<div class="h">${g.label}</div>`).join('')}`;
   topic.matrix.rows.forEach(cs => {
     h += `<div class="h rh">${cs.label}<em>${cs.hint}</em></div>`;
     topic.matrix.cols.forEach(g => {
@@ -36,7 +36,7 @@ export function renderHeat(heatEl, topic, states, peek) {
 function renderHeatReach(heatEl, topic, st) {
   const rows = topic.matrix.rows, cols = topic.matrix.cols;
   heatEl.style.setProperty('--heat-cols', cols.length);
-  let h = `<div></div>${cols.map(c => `<div class="h">${c.label}<em>${c.hint}</em></div>`).join('')}`;
+  let h = `<div class="corner"></div>${cols.map(c => `<div class="h">${c.label}<em>${c.hint}</em></div>`).join('')}`;
   rows.forEach(r => {
     h += `<div class="h rh">${r.label}${r.hint ? `<em>${r.hint}</em>` : ''}</div>`;
     const pool = topic.cards.filter(c => c.pos === r.k);

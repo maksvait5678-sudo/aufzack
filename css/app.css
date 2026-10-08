@@ -145,10 +145,19 @@ header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:s
 section.map{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:16px}
 .map-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
 .map-top h2{font-size:1.05rem;margin:0}
-.heat{display:grid;grid-template-columns:auto repeat(var(--heat-cols,4),1fr);gap:6px}
+/* Карта засвоєння. Колонки мають МІНІМАЛЬНУ ширину, а сітка горизонтально прокручується —
+   текст ніколи не обрізається (praesens має 7 колонок, на телефоні 1fr стискав їх у кашу).
+   Перша колонка (підписи рядків) — липка, лишається видимою під час горизонтальної прокрутки. */
+.heat{display:grid;grid-template-columns:auto repeat(var(--heat-cols,4),minmax(64px,1fr));gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.heat[hidden]{display:none}   /* явно: display:grid інакше перебиває атрибут hidden */
 .heat .h{font-size:.75rem;color:var(--muted);text-align:center;align-self:center;font-weight:600}
-.heat .rh{text-align:right;padding-right:4px;line-height:1.15}
+.heat .h em{display:block;font-style:normal;font-weight:400;font-size:.64rem;opacity:.8;line-height:1.2}
+.heat .rh{text-align:right;padding-right:6px;line-height:1.15}
 .heat .rh em{font-style:normal;display:block;font-size:.68rem;opacity:.8}
+/* Липка колонка підписів + кутова клітинка: лишаються на місці при прокрутці, з фоном секції,
+   щоб клітинки не «просвічували» під ними. */
+.heat .corner,.heat .rh{position:sticky;left:0;z-index:2;background:var(--surface)}
+.heat-ph{color:var(--muted);font-size:.85rem;text-align:center;padding:16px 4px;line-height:1.4}
 .hc{border-radius:12px;min-height:48px;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--pill-ink);position:relative;overflow:hidden;background:var(--surface2);border:1px solid var(--line)}
 .hc .fill{position:absolute;inset:0;transform-origin:left;opacity:.95}
 .hc span{position:relative;font-size:.95rem}
