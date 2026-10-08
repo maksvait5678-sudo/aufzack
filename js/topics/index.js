@@ -7,9 +7,10 @@ import wechsel from './wechsel.js';
 import praesens from './praesens.js';
 import satzbau from './satzbau.js';
 import perfekt from './perfekt.js';
+import wortschatz from './wortschatz.js';
 
 // Порядок = порядок у хабі. genus перший: рід — база для таблиці артиклів.
-export const topics = [genus, artikel, praepositionen, wechsel, praesens, satzbau, perfekt];
+export const topics = [genus, artikel, praepositionen, wechsel, praesens, satzbau, perfekt, wortschatz];
 export const byId = Object.fromEntries(topics.map(t => [t.id, t]));
 
 export function getTopic(id) {

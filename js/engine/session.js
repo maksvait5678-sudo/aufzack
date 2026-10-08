@@ -14,6 +14,10 @@ export function createSession(topic) {
   let cur = null;
   let shownAt = 0;
   let answered = false;
+  // Скільки НОВИХ карток уведено в ЦІЙ сесії. Тема може обмежити (topic.maxNewPerSession:
+  // wortschatz — 10), щоб лексика не завалювала чергу граматичних тем. Живе в сесії, не в прогресі.
+  let newThisSession = 0;
+  const maxNew = topic.maxNewPerSession;
   // Прапорець «підглядали в таблицю під час показу цієї картки». Живе в сесії, НЕ в
   // прогресі (не зберігається). Поки стоїть — відповідь на картку не змінює стан
   // (ні рівень, ні due, ні серію, ні лічильник дня): людина розбирається, не перевіряє
@@ -24,11 +28,13 @@ export function createSession(topic) {
   const persist = () => store.saveTopic(id, data);
 
   function pickNext(now = Date.now()) {
-    return srs.pick(cards, data.cards, { mode, recent, now });
+    const newAllowed = maxNew === undefined || newThisSession < maxNew;
+    return srs.pick(cards, data.cards, { mode, recent, now, newAllowed });
   }
 
   function next(now = Date.now()) {
     cur = pickNext(now);
+    if (cur && cur.isNew) newThisSession++;   // врахувати введену нову картку в ліміт сесії
     answered = false;
     peeked = false;      // нова картка — чистий прапорець підглядання
     shownAt = now;
@@ -89,6 +95,30 @@ export function createSession(topic) {
     return res;
   }
 
+  // Оцінити слово-картку (градуйоване відтворення, тема wortschatz). `ok` і `articleOnly`
+  // рахує викликач (знає мову поточної сходинки); сходинку рушій бере зі стану картки.
+  // Підглядання: стан НЕ змінюємо, повертаємо лише вердикт для показу (counted:false).
+  function answerWord(card, { ok, ms, articleOnly }, now = Date.now()) {
+    if (peeked) { markSeen(card.id); return { ok, fast: true, articleOnly: !!articleOnly, counted: false }; }
+    const prev = st(card.id);
+    const step = (prev && prev.step) || 0;
+    const res = srs.gradeWord(prev, { ok, ms, step, articleOnly, mode, now });
+    data.cards[card.id] = res.state;
+    record(res.ok, card.id, now);   // articleOnly/помилка → record(false): серія рветься
+    persist();
+    return { ok: res.ok, fast: res.fast, articleOnly: res.articleOnly, counted: true };
+  }
+
+  // Кнопка «Не знаю»: скидає картку на рівень 0 і першу сходинку, не зараховується.
+  function dontKnow(card, now = Date.now()) {
+    if (peeked) { markSeen(card.id); return { counted: false }; }
+    const res = srs.gradeWord(st(card.id), { dontKnow: true, mode, now });
+    data.cards[card.id] = res.state;
+    record(false, card.id, now);
+    persist();
+    return { counted: true };
+  }
+
   function setMode(m) {
     mode = m;
     // Профілактика недоступна, поки жодної картки не введено.
@@ -103,6 +133,7 @@ export function createSession(topic) {
     cur = null;
     answered = false;
     peeked = false;
+    newThisSession = 0;
   }
 
   return {
@@ -120,6 +151,8 @@ export function createSession(topic) {
     markPeeked,
     answer,
     answerTwoStep,
+    answerWord,
+    dontKnow,
     setMode,
     reset
   };

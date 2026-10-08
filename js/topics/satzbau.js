@@ -31,6 +31,20 @@ const logo = `<span class="tl-word">Satzbau</span>`
       `<span class="tl-pill" style="background:var(--surface2);color:var(--ink);border:1px solid var(--line)">${w}</span>`
     ).join('');
 
+// Peek карти засвоєння — СХЕМА порядку слів блоку (а не маркер «V2», який і так у заголовку
+// картки). Дієслово виділяємо капсом + вагою — його позиція і є суттю правила. Решта слотів —
+// легшим приглушеним текстом. Маркери блоку з BLOCKS.rule лишаються підписом рядка (компактний тег).
+const V = t => `<b style="font-weight:800;color:var(--ink)">${t}</b>`;   // дієслово — виділене
+const schema = html =>
+  `<span style="font-size:.7rem;font-weight:500;color:var(--muted);white-space:normal;line-height:1.25;display:block;padding:2px 6px">${html}</span>`;
+const SCHEMA = {
+  b1: schema(`Підмет · ${V('ДІЄСЛОВО')} · решта`),
+  b2: schema(`Обставина · ${V('ДІЄСЛОВО')} · підмет · решта`),
+  b3: schema(`Підмет · ${V('МОДАЛЬНЕ')} · решта · Інфінітив`),
+  b4: schema(`${V('ДІЄСЛОВО')} · підмет · …?<br>Питальне · ${V('ДІЄСЛОВО')} · підмет`),
+  b5: schema(`${V('nicht')} перед запереченим членом<br>(інакше — у кінці речення)`)
+};
+
 export default {
   id: 'satzbau',
   title: 'Satzbau: порядок слів',
@@ -43,7 +57,7 @@ export default {
   matrix: {
     rows: BLOCKS.map(b => ({ k: b.k, label: b.label, hint: b.rule })),
     cols: [{ k: 'o', label: 'порядок' }],
-    value: (row) => BLOCKS.find(b => b.k === row).rule
+    value: (row) => SCHEMA[row]
   },
   cards
 };

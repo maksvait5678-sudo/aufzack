@@ -9,14 +9,16 @@ export function bindKeyboard(handlers) {
     const c = cur.card;
     const answered = handlers.isAnswered();
     const answers = handlers.getAnswers();
+    // Ввід тексту: type, а також слово-картка на сходинці 2 (питає сам контролер).
+    const text = handlers.isTextEntry && handlers.isTextEntry();
 
     // Конструктор (order): цифри додають N-те слово з розсипу, Backspace знімає останнє.
     if (!answered && c.type === 'order') {
       if (e.key >= '1' && e.key <= '9') { e.preventDefault(); handlers.onPlaceIndex(+e.key - 1); return; }
       if (e.key === 'Backspace') { e.preventDefault(); handlers.onUnplaceLast(); return; }
     }
-    // Цифри — лише для карток з кнопками. grid/type/order вводяться інакше.
-    if (!answered && c.type !== 'grid' && c.type !== 'type' && c.type !== 'order' && e.key >= '1' && e.key <= String(answers.length)) {
+    // Цифри — лише для карток з кнопками. grid/order і будь-який ввід тексту вводяться інакше.
+    if (!answered && !text && c.type !== 'grid' && c.type !== 'order' && e.key >= '1' && e.key <= String(answers.length)) {
       e.preventDefault();
       handlers.onChoose(answers[+e.key - 1]);
       return;
@@ -27,8 +29,8 @@ export function bindKeyboard(handlers) {
       if (ae && ae.tagName === 'BUTTON' && !answered && c.type === 'grid' && ae.classList.contains('cell')) return;
       e.preventDefault();
       if (answered) handlers.onNext();
-      // Перевірка: grid (кнопка), type (поле), order (складений рядок).
-      else if (c.type === 'grid' || c.type === 'type' || c.type === 'order') handlers.onCheck();
+      // Перевірка: grid (кнопка), order (складений рядок), будь-який ввід тексту (поле).
+      else if (text || c.type === 'grid' || c.type === 'order') handlers.onCheck();
     }
   });
 }
