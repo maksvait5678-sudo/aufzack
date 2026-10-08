@@ -5,16 +5,23 @@
 //   1) вибір допоміжного haben/sein — тип `choice` (дві нейтральні кнопки);
 //   2) ввід Partizip II — тип `type` (варіантів забагато, вибір не тренує), як у praesens.
 //
-// Порядок уведення нових карток (SPEC §9-подібно, блоки за порядком):
-//   1) haben/sein — спершу sein-дієслова (рідкісні, несуть правило), тоді haben;
-//   2) Partizip II правильних (gemacht);  3) сильних (gegangen);
-//   4) без ge- (studiert, verstanden);    5) відокремлюваних (aufgestanden).
-// Жива черга рушія перемежовує картки сама (SPEC §3) — масив лише задає порядок відкриття.
+// ── Порядок уведення нових карток ────────────────────────────────────────────
+// Пара [haben/sein, Partizip] кожного дієслова йде ПІДРЯД, а дієслова чергуються за
+// допоміжним (≈ sein, haben, haben). Так кожну картку haben/sein розділяє картка Partizip
+// з УНІКАЛЬНОЮ відповіддю, і серед нових карток не буває двох однакових відповідей підряд.
+// Це важливо, бо srs.pick вводить нові картки СТРОГО в порядку масиву (кроки 2/4), а
+// перемежування за відповіддю (pickNoRun) діє лише в пулах review (кроки 1/3/5) — тобто
+// антисерійність уведення нових карток належить темі (SPEC §9: «тема сама вирішує
+// послідовність»). Масив з усіма sein підряд давав 20+ sein-карток поспіль.
 //
-// Карта засвоєння (SPEC §6): формотворення Partizip (рядки) × haben/sein (стовпці),
-// НЕЙТРАЛЬНА (без кольорів відповідей). Кожне дієслово лягає в одну клітинку (свій тип ×
-// свій допоміжний), обидві його картки — туди ж. Peek показує лише маркер формотворення.
-import { GROUPS, AUX, VERBS, auxWhyFor, ppWhyFor, cellMark } from './perfekt.data.js';
+// ── Карта засвоєння (SPEC §6) ────────────────────────────────────────────────
+// Один стовпець, кожен рядок — ОКРЕМА навичка: 4 типи формотворення Partizip
+// (правильні/сильні/без ge-/відокремлювані) + 2 рядки вибору допоміжного (sein / haben).
+// Два стовпці (формотворення × haben/sein) відкинуто: форма Partizip не залежить від
+// допоміжного, тож обидві колонки показували б той самий маркер — вдавали б два знання.
+// Нейтральна (без кольорів відповідей). Картка Partizip → рядок свого формотворення;
+// картка haben/sein → рядок свого допоміжного.
+import { HEAT_ROWS, HEAT_COL, VERBS, auxWhyFor, ppWhyFor, cellMark } from './perfekt.data.js';
 
 const KIND_PP = {
   reg: 'Partizip II: правильне', strong: 'Partizip II: сильне',
@@ -23,8 +30,9 @@ const KIND_PP = {
 
 const play = VERBS.filter(v => !v.todo);
 
-// Картка 1 — вибір haben/sein. Дуальні дієслова (fahren, fliegen) несуть контекст у промпті,
-// щоб рух зі зміною місця → sein був однозначним (інакше обидві відповіді правильні).
+// Картка 1 — вибір haben/sein. Рядок карти — допоміжне дієслова. Дуальні дієслова
+// (fahren, fliegen) несуть контекст у промпті, щоб рух зі зміною місця → sein був
+// однозначним (інакше обидві відповіді правильні).
 const auxCard = v => ({
   id: `pf-aux-${v.inf}`,
   type: 'choice',
@@ -33,11 +41,11 @@ const auxCard = v => ({
   gloss: v.uk,
   options: ['haben', 'sein'],
   answer: v.aux,
-  cell: { row: v.group, col: v.aux },
+  cell: { row: v.aux === 'sein' ? 'aux_sein' : 'aux_haben', col: HEAT_COL.k },
   why: auxWhyFor(v, 'uk')
 });
 
-// Картка 2 — ввід Partizip II.
+// Картка 2 — ввід Partizip II. Рядок карти — тип формотворення.
 const ppCard = v => ({
   id: `pf-pp-${v.inf}`,
   type: 'type',
@@ -46,17 +54,28 @@ const ppCard = v => ({
   ask: 'Partizip II',
   gloss: v.uk,
   answer: v.part,
-  cell: { row: v.group, col: v.aux },
+  cell: { row: v.group, col: HEAT_COL.k },
   why: ppWhyFor(v, 'uk')
 });
 
-// Блок 1 — усі картки haben/sein (sein-дієслова першими: правило вчиться на них).
-const auxCards = [...play.filter(v => v.aux === 'sein'), ...play.filter(v => v.aux === 'haben')].map(auxCard);
-// Блоки 2–5 — Partizip II у порядку груп формотворення.
+// Порядок дієслів: усередині кожного допоміжного — за типом формотворення (щоб патерни
+// Partizip трохи трималися купи), тоді чергуємо sein / haben / haben (sein рідкісні — 12,
+// haben — 28, тож на кожне sein ≈ два haben). sein з'являється одразу і регулярно (SPEC:
+// несе правило), а не пачкою на початку.
 const GROUP_ORDER = ['reg', 'strong', 'noge', 'sep'];
-const ppCards = GROUP_ORDER.flatMap(g => play.filter(v => v.group === g).map(ppCard));
+const byFormation = (a, b) => GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group);
+const seinV = play.filter(v => v.aux === 'sein').sort(byFormation);
+const habenV = play.filter(v => v.aux === 'haben').sort(byFormation);
 
-const cards = [...auxCards, ...ppCards];
+const verbOrder = [];
+for (let i = 0, j = 0; i < seinV.length || j < habenV.length;) {
+  if (i < seinV.length) verbOrder.push(seinV[i++]);
+  if (j < habenV.length) verbOrder.push(habenV[j++]);
+  if (j < habenV.length) verbOrder.push(habenV[j++]);
+}
+
+// Пара карток кожного дієслова підряд — ключ до антисерійності (див. коментар згори).
+const cards = verbOrder.flatMap(v => [auxCard(v), ppCard(v)]);
 
 // Знак теми з її матеріалу — два допоміжні у 3-й особі (hat / ist), нейтральні пігулки.
 const logo = `<span class="tl-word">Perfekt</span>`
@@ -74,9 +93,9 @@ export default {
   colors: {},               // карта засвоєння нейтральна (без кольорів відповідей)
   showChip: false,          // чип-рід тут не має сенсу
   matrix: {
-    rows: GROUPS,
-    cols: AUX,
-    value: (group, aux) => cellMark(group, aux)   // heat викликає value(row, col)
+    rows: HEAT_ROWS,
+    cols: [HEAT_COL],
+    value: (row) => cellMark(row)   // heat викликає value(row, col); стовпець один
   },
   cards
 };
