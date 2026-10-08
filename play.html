@@ -53,6 +53,7 @@
       <button class="btn ghost" id="peek">Підглянути таблицю</button>
     </div>
     <div class="heat" id="heat"></div>
+    <div class="heat-ph" id="heatPh" hidden>Карта відкриється після відповіді — щоб не підглядати відповідь на поточне слово.</div>
   </section>
 
   <div class="nudge" id="saveNudge" hidden></div>
@@ -129,6 +130,18 @@ function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.fl
 function refresh() {
   renderStats(statEls, topic, session.data);
   renderHeat(heatEl, topic, session.data.cards, peek);
+  updateMapVisibility();
+}
+
+// Карта засвоєння показує прогрес у клітинці, позиція якої в деяких темах і є відповіддю
+// (genus: колонка = рід; perfekt: рядок = haben/sein). Тож поки картка БЕЗ відповіді — ховаємо
+// сітку (лишаємо заголовок і кнопку peek на місці, щоб сторінка не стрибала). Карта показується
+// у фідбеку (після відповіді), на екрані «Готово» (немає поточної картки) і коли свідомо
+// натиснули «Підглянути таблицю» — а це вже рахується як підглядання (картка не зараховується).
+function updateMapVisibility() {
+  const show = session.answered || !session.cur || peek;
+  document.getElementById('heat').hidden = !show;
+  document.getElementById('heatPh').hidden = show;
 }
 
 // Позначка біля картки: показуємо, поки стоїть прапорець підглядання (зберігається
@@ -152,6 +165,7 @@ function advance() {
   // Якщо таблиця лишилась відкритою — нова картка теж одразу «під підгляданням».
   if (cur && peek) session.markPeeked();
   updatePeekNote();
+  updateMapVisibility();   // нова картка без відповіді — ховаємо сітку (лишаємо заголовок+кнопку)
   if (!cur) { renderDone(cardEl, session.data, topic.cards.length, () => setMode('drill')); return; }
   ts = cur.card.type === 'twostep' ? { phase: 'step1' } : null;
   wordView = null;
@@ -405,6 +419,7 @@ document.getElementById('peek').addEventListener('click', e => {
   if (peek) session.markPeeked();
   updatePeekNote();
   renderHeat(heatEl, topic, session.data.cards, peek);
+  updateMapVisibility();   // peek під час картки — відкриває сітку (і картка вже не рахується)
 });
 document.getElementById('reset').addEventListener('click', () => {
   if (confirm('Скинути весь прогрес?')) { session.reset(); closeIO(); refresh(); setMode('learn'); }
