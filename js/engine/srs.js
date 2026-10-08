@@ -42,6 +42,14 @@ export const FAST_ERROR = 1200;
 // Мінімальний розрив між двома правильними відповідями, щоб зняти relearn.
 export const RELEARN_GAP = 10 * MIN;
 
+// Градуйоване відтворення (тема wortschatz, SPEC-подібно). Кожне слово має свою
+// СХОДИНКУ 0..2, що зберігається у стані картки окремо від SRS-рівня `b`:
+//   0 нім→укр вибір · 1 укр→нім вибір · 2 укр→нім ввід.
+// Підйом: STEP_UP правильних-і-швидких підряд. Спуск: STEP_DOWN помилок підряд.
+export const STEP_UP = 3, STEP_DOWN = 3, MAXSTEP = 2;
+// Який тип рендеру (а отже й поріг швидкості) у слова на цій сходинці.
+export function wordType(step) { return step >= 2 ? 'type' : 'choice'; }
+
 // Свіжий стан картки, ще не введеної в роботу.
 export function freshCard(now) {
   return { b: 0, due: now, r: 0, w: 0 };
@@ -117,10 +125,44 @@ export function gradeTwoStep(state, { ok1, ms1, ok2, ms2, mode, now }) {
   return { state: s, ok, fast, ok1, ok2, fast1, fast2 };
 }
 
+// Оцінити відповідь на слово-картку (градуйоване відтворення, тема wortschatz).
+// Поверх `grade` (SRS-рівень/due/relearn) веде окрему СХОДИНКУ в стані:
+//   `step` 0..2, `up` — підряд правильних-і-швидких, `down` — підряд помилок.
+// Прапорці входу:
+//   dontKnow    — кнопка «Не знаю»: учень не бачив слова. Жорсткіший за помилку —
+//                 скидаємо і рівень (b=0), і сходинку (step=0). Не зараховується як правильне.
+//   articleOnly — ввід: слово правильне, лише бракує/хибний артикль. Для SRS це помилка
+//                 (серія рветься, b=0), АЛЕ сходинку вниз НЕ опускаємо (down не росте).
+export function gradeWord(state, { ok, ms, step, mode, now, articleOnly, dontKnow }) {
+  if (dontKnow) {
+    const s = state ? { ...state } : freshCard(now);
+    s.b = 0; s.due = now + IV[0]; s.relearn = true; s.relearnAt = undefined;
+    s.step = 0; s.up = 0; s.down = 0;
+    return { state: s, fast: false, ok: false };
+  }
+  // Поріг швидкості залежить від сходинки (вибір 4000 мс проти вводу 12000 мс).
+  const { state: s, fast } = grade(state, { ok, ms, type: wordType(step), mode, now });
+  s.step = s.step || 0; s.up = s.up || 0; s.down = s.down || 0;
+  if (ok && fast) {
+    s.up++; s.down = 0;
+    if (s.up >= STEP_UP && s.step < MAXSTEP) { s.step++; s.up = 0; }  // підйом
+  } else if (ok) {
+    s.up = 0; s.down = 0;                       // правильно, але повільно — швидка серія рветься
+  } else if (articleOnly) {
+    s.up = 0;                                   // лише артикль — сходинку не чіпаємо (down без змін)
+  } else {
+    s.up = 0; s.down++;
+    if (s.down >= STEP_DOWN && s.step > 0) { s.step--; s.down = 0; }  // спуск
+  }
+  return { state: s, fast, ok, articleOnly: !!articleOnly };
+}
+
 // Вибір наступної картки. `cards` — колода в порядку введення нових,
 // `states` — мапа id → стан (лише введені картки мають стан).
+// `newAllowed` — чи можна вводити НОВІ картки (false, коли тема вичерпала ліміт нових
+// за сесію, напр. wortschatz: 10/сесію — інакше лексика завалює чергу граматичних тем).
 // Повертає { card, isNew? } або null.
-export function pick(cards, states, { mode, recent, now, rng = Math.random }) {
+export function pick(cards, states, { mode, recent, now, rng = Math.random, newAllowed = true }) {
   const st = id => states[id];
   const intro = cards.filter(c => st(c.id));
   const recN = intro.length > 4 ? 6 : 1;
@@ -163,7 +205,7 @@ export function pick(cards, states, { mode, recent, now, rng = Math.random }) {
   // Нові картки — у порядку масиву (послідовність задає тема). Серед невведених одразу беремо
   // ту, що не продовжить серію, щоб тема з однаковими відповідями підряд на початку масиву
   // (genus, perfekt) не давала довгої серії ще на етапі введення.
-  const newPool = cards.filter(c => !st(c.id));
+  const newPool = newAllowed ? cards.filter(c => !st(c.id)) : [];
   const nextNew = newPool.length ? pickNoRun(newPool) : null;
   const early = learning.filter(c => st(c.id).b <= 1 && nr(c) && !st(c.id).relearn).sort((a, b) => st(a.id).due - st(b.id).due);
   const b2 = learning.filter(nr).sort((a, b) => st(a.id).due - st(b.id).due);

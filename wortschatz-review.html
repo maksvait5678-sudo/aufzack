@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wortschatz — перевірка даних</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 26px 0 8px; }
+  .note { color: #666; margin: 0 0 16px; max-width: 82ch; }
+  .warn { margin: 0 0 16px; padding: 12px 14px; border-radius: 10px; background: #fff0d6; color: #7a4d00; max-width: 82ch; }
+  @media (prefers-color-scheme: dark) { .warn { background: #3a2f1a; color: #e0b060; } }
+  .summary { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0 0 8px; padding: 12px 14px; background: #f4f4f2; border-radius: 10px; }
+  .summary b { font-variant-numeric: tabular-nums; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; margin: 0 0 6px; max-width: 80ch; }
+  th, td { text-align: left; padding: 5px 10px; border-bottom: 1px solid #ddd; vertical-align: top; }
+  @media (prefers-color-scheme: dark) { th, td { border-color: #333; } .summary { background: #222; } .note { color: #999; } }
+  th { font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; color: #666; white-space: nowrap; }
+  .de { font-weight: 600; white-space: nowrap; }
+  .de b { color: #1c6b1c; }
+  @media (prefers-color-scheme: dark) { .de b { color: #8fd68f; } }
+  .g-der b { color: #1456b0; }  .g-die b { color: #a8176b; }  .g-das b { color: #1c6b1c; }
+  @media (prefers-color-scheme: dark) { .g-der b { color: #6ea8f0; } .g-die b { color: #f07ab5; } .g-das b { color: #8fd68f; } }
+  .uk { color: #333; }
+  @media (prefers-color-scheme: dark) { .uk { color: #ddd; } }
+  .alt { color: #8a5a10; font-size: .9rem; }
+  @media (prefers-color-scheme: dark) { .alt { color: #e0b060; } }
+  .todo td { background: #fde2e2; }
+  @media (prefers-color-scheme: dark) { .todo td { background: #3a1f1f; } }
+  .badge { font-size: .74rem; padding: 1px 7px; border-radius: 999px; background: #fde2e2; color: #a33; margin-left: 6px; }
+  @media (prefers-color-scheme: dark) { .badge { background: #4a1f1f; color: #e59; } }
+</style>
+</head>
+<body>
+<h1 id="title"></h1>
+<div class="warn">
+  <b>Увага:</b> це <b>частотна лексика рівня A1, складена з пам'яті</b>, а <b>не</b> офіційний
+  список Goethe A1. Будь ласка, звір перед використанням у заняттях передусім <b>рід іменників</b>
+  (der/die/das) і <b>основне значення</b>. Сумнівне виправ або познач — одна помилкова форма в грі
+  про зубріння шкідливіша за відсутнє слово.
+</div>
+<p class="note">
+  Кожне слово з <code>js/topics/wortschatz.data.js</code> дає одну картку, що з прогресом змінює
+  сходинку: нім→укр вибір · укр→нім вибір · укр→нім ввід. Дистрактори беруться зі слів тієї ж
+  частини мови. Іменник подано з артиклем — саме це гра прийме за правильну відповідь; слово без
+  артикля зараховується як помилка (але сходинку вниз не опускає). Умлаути при вводі можна
+  набирати як <code>ae/oe/ue/ss</code>. «Багатозначність» — другорядні значення, які показуються
+  у фідбеку, але у виборі не беруть участі.
+</p>
+<div class="summary" id="summary"></div>
+<div id="sections"></div>
+
+<script type="module">
+import { POS, WORDS } from './js/topics/wortschatz.data.js';
+
+const esc = s => String(s).replace(/[&<>]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[x]));
+const ARTS = ['der', 'die', 'das'];
+
+// Рід — перший токен іменника, якщо це артикль; інакше порожньо (дієслова, прикметники…).
+function genus(de) {
+  const a = de.split(' ')[0];
+  return ARTS.includes(a) ? a : '';
+}
+
+function row(w) {
+  const g = genus(w.de);
+  const deCls = g ? `de g-${g}` : 'de';
+  const alt = w.alt && w.alt.length
+    ? `<span class="alt">${w.alt.map(x => esc(x.uk)).join(', ')}</span>` : '';
+  const todoBadge = w.todo ? `<span class="badge">todo</span>` : '';
+  return `<tr${w.todo ? ' class="todo"' : ''}>`
+    + `<td class="${deCls}"><b>${esc(w.de)}</b>${todoBadge}</td>`
+    + `<td>${g || '—'}</td>`
+    + `<td class="uk">${esc(w.uk)}</td>`
+    + `<td>${alt}</td>`
+    + `</tr>`;
+}
+
+function table(words) {
+  const head = `<tr><th>Слово</th><th>Рід</th><th>Переклад</th><th>Багатозначність</th></tr>`;
+  return `<table><thead>${head}</thead><tbody>${words.map(row).join('')}</tbody></table>`;
+}
+
+document.getElementById('title').textContent = 'Wortschatz — перевірка даних для вчителя';
+
+const play = WORDS.filter(w => !w.todo);
+const todo = WORDS.filter(w => w.todo);
+const nouns = WORDS.filter(w => w.pos === 'noun');
+const multi = WORDS.filter(w => w.alt && w.alt.length);
+document.getElementById('summary').innerHTML =
+  `<span>Слів у грі: <b>${play.length}</b></span>`
+  + `<span>іменників: <b>${nouns.length}</b></span>`
+  + `<span>багатозначних: <b>${multi.length}</b></span>`
+  + `<span>todo: <b>${todo.length}</b></span>`;
+
+const secs = [];
+POS.forEach(p => {
+  const ws = WORDS.filter(w => w.pos === p.k);
+  if (!ws.length) return;
+  secs.push(`<h2>${esc(p.label)} (${ws.length})</h2>` + table(ws));
+});
+document.getElementById('sections').innerHTML = secs.join('');
+</script>
+</body>
+</html>

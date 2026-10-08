@@ -76,7 +76,7 @@
 import { getTopic } from './js/topics/index.js';
 import { createSession } from './js/engine/session.js';
 import * as store from './js/engine/store.js';
-import { renderCard, showChoiceFeedback, showGridFeedback, showTypeFeedback, showOrderFeedback, paintOrder, showTwoStepStep1, showTwoStepStep2, renderDone } from './js/ui/render.js';
+import { renderCard, showChoiceFeedback, showGridFeedback, showTypeFeedback, showOrderFeedback, showWordFeedback, paintOrder, showTwoStepStep1, showTwoStepStep2, renderDone } from './js/ui/render.js';
 import { FAST_STEP1, FAST, typeMatches, matchOrder } from './js/engine/srs.js';
 import { renderHeat } from './js/ui/heat.js';
 import { renderStats } from './js/ui/stats.js';
@@ -110,6 +110,18 @@ const statEls = {
 
 let peek = false, autoT = null, sel = new Set(), ts = null; // ts — стан двокрокової картки
 let order = null; // order — транзієнтний стан конструктора { placed, bank } (масиви {id,text})
+let wordView = null; // wordView — поточний вигляд слова-картки (mode/options) для клавіатури
+
+// Поточна сходинка слова-картки (зі стану; нова картка — 0).
+function stepOf(card) { const s = session.stateOf(card.id); return (s && s.step) || 0; }
+// Чи поточна картка вводиться текстом (type, або слово на сходинці 2) — для клавіатури.
+function isTextEntry() {
+  const cur = session.cur; if (!cur) return false;
+  const c = cur.card;
+  if (c.type === 'type') return true;
+  if (c.type === 'word') return stepOf(c) === 2;
+  return false;
+}
 
 // Фішер-Єйтс: перемішати розсип слів (детермінованість тут не потрібна).
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -142,6 +154,7 @@ function advance() {
   updatePeekNote();
   if (!cur) { renderDone(cardEl, session.data, topic.cards.length, () => setMode('drill')); return; }
   ts = cur.card.type === 'twostep' ? { phase: 'step1' } : null;
+  wordView = null;
   // Конструктор: створюємо екземпляри слів (id+text) з банку картки, перемішуємо; усі в розсипі.
   order = cur.card.type === 'order'
     ? { placed: [], bank: shuffle(cur.card.bank.map((text, i) => ({ id: String(i), text }))) }
@@ -156,6 +169,8 @@ function advance() {
     getOrder: () => order,
     onPlace: id => moveWord(id, order.bank, order.placed),
     onUnplace: id => moveWord(id, order.placed, order.bank),
+    onWordView: v => { wordView = v; },
+    onDunno: wordDunno,
     onCheck: check
   });
 }
@@ -176,6 +191,7 @@ function check() {
   if (cur.card.type === 'grid') return checkRev();
   if (cur.card.type === 'type') return checkType();
   if (cur.card.type === 'order') return checkOrder();
+  if (cur.card.type === 'word') return checkWord();
 }
 
 // Картка order: порівняння порядку складених слів з усіма допустимими варіантами (srs.matchOrder).
@@ -193,12 +209,62 @@ function checkOrder() {
   if (res.ok && res.good) autoT = setTimeout(advance, fast ? 900 : 1600);
 }
 
-// Роутер вибору: двокрокова картка йде своїм шляхом, решта — звичайним choose.
+// Роутер вибору: двокрокова картка й слово-картка йдуть своїм шляхом, решта — звичайним choose.
 function onChoose(a) {
   const cur = session.cur;
   if (!cur) return;
   if (cur.card.type === 'twostep') return twoStepChoose(a);
+  if (cur.card.type === 'word') return wordChoose(a);
   return choose(a);
+}
+
+// Слово-картка, вибір (сходинки 0/1): порівняння з правильною відповіддю для сходинки.
+function wordChoose(a) {
+  const cur = session.cur;
+  if (session.answered || !cur) return;
+  const c = cur.card;
+  const step = stepOf(c);
+  const ms = Date.now() - session.shownAt;
+  const ok = a === topic.answerFor(c, step);
+  const r = session.answerWord(c, { ok, ms });
+  refresh();
+  if (!session.peeked) afterAnswer();
+  showWordFeedback(cardEl, topic, c, step, { ok: r.ok, articleOnly: false, dunno: false }, a, ms, r.fast, advance);
+  markFbNotCounted();
+  if (r.ok) autoT = setTimeout(advance, r.fast ? 750 : 1500);
+}
+
+// Слово-картка, ввід (сходинка 2): checkInput розрізняє «інше слово» і «бракує артикля».
+function checkWord() {
+  const cur = session.cur;
+  if (session.answered || !cur) return;
+  const c = cur.card;
+  const step = stepOf(c);
+  if (step !== 2) return;            // сходинки 0/1 — вибір, не ввід
+  const inp = document.getElementById('typeInput');
+  const val = inp ? inp.value : '';
+  const ms = Date.now() - session.shownAt;
+  const { ok, articleOnly } = topic.checkInput(c, val);
+  const r = session.answerWord(c, { ok, ms, articleOnly });
+  refresh();
+  if (!session.peeked) afterAnswer();
+  showWordFeedback(cardEl, topic, c, step, { ok: r.ok, articleOnly: r.articleOnly, dunno: false }, val, ms, r.fast, advance);
+  markFbNotCounted();
+  if (r.ok) autoT = setTimeout(advance, r.fast ? 750 : 1500);
+}
+
+// Кнопка «Не знаю»: показуємо повну відповідь, скидаємо картку, без автопереходу (хай прочитає).
+function wordDunno() {
+  const cur = session.cur;
+  if (session.answered || !cur) return;
+  const c = cur.card;
+  const step = stepOf(c);
+  const ms = Date.now() - session.shownAt;
+  session.dontKnow(c);
+  refresh();
+  if (!session.peeked) afterAnswer();
+  showWordFeedback(cardEl, topic, c, step, { ok: false, articleOnly: false, dunno: true }, null, ms, false, advance);
+  markFbNotCounted();
 }
 
 function choose(a) {
@@ -354,8 +420,10 @@ bindKeyboard({
     const cur = session.cur;
     if (!cur) return topic.answers;
     if (cur.card.type === 'twostep' && ts && ts.phase === 'step1') return cur.card.step1.options;
+    if (cur.card.type === 'word') return wordView ? wordView.options : [];  // слово: дистрактори поточного показу
     return cur.card.options || topic.answers;   // choice з власними кнопками (прийменники)
   },
+  isTextEntry,
   onChoose,
   onCheck: check,
   onNext: advance,

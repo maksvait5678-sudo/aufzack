@@ -3,6 +3,11 @@
 
 export function renderHeat(heatEl, topic, states, peek) {
   const st = id => states[id];
+  // Кумулятивна карта (тема wortschatz): рядки — частини мови, стовпці — сходинки.
+  // Клітинка (pos × сходинка N) наливається часткою слів цього pos, що ДОСЯГЛИ ≥ N
+  // (слово на сходинці 2 вже «пройшло» 0 і 1). Сходи наливаються зліва направо й не
+  // падають, коли слово просувається вперед (SPEC-рішення проти хибного «регресу»).
+  if (topic.heatReach) return renderHeatReach(heatEl, topic, st);
   // Кількість колонок під матрицю теми (artikel — 4 роди, genus — 3 роди).
   heatEl.style.setProperty('--heat-cols', topic.matrix.cols.length);
   let h = `<div></div>${topic.matrix.cols.map(g => `<div class="h">${g.label}</div>`).join('')}`;
@@ -21,6 +26,26 @@ export function renderHeat(heatEl, topic, states, peek) {
       const label = !has ? '' : (peek ? `<span${peekInk}>${a}</span>` : `<span class="pct">${Math.round(v * 100)}%</span>`);
       const fill = has ? `<div class="fill" style="background:${peek ? topic.colors[a] : 'var(--prog)'};transform:scaleX(${peek ? 1 : v})"></div>` : '';
       h += `<div class="hc" title="${cs.label} ${g.label}">${fill}${label}</div>`;
+    });
+  });
+  heatEl.innerHTML = h;
+}
+
+// Кумулятивна карта (heatReach): рядки — частини мови (cols[].k — числовий поріг сходинки).
+// Нейтральна (без кольорів відповідей); peek тут нічого не відкриває — показуємо той самий %.
+function renderHeatReach(heatEl, topic, st) {
+  const rows = topic.matrix.rows, cols = topic.matrix.cols;
+  heatEl.style.setProperty('--heat-cols', cols.length);
+  let h = `<div></div>${cols.map(c => `<div class="h">${c.label}<em>${c.hint}</em></div>`).join('')}`;
+  rows.forEach(r => {
+    h += `<div class="h rh">${r.label}${r.hint ? `<em>${r.hint}</em>` : ''}</div>`;
+    const pool = topic.cards.filter(c => c.pos === r.k);
+    cols.forEach(col => {
+      const reached = pool.filter(c => { const s = st(c.id); return s && (s.step || 0) >= col.k; }).length;
+      const v = pool.length ? reached / pool.length : 0;
+      const label = pool.length ? `<span class="pct">${Math.round(v * 100)}%</span>` : '';
+      const fill = pool.length ? `<div class="fill" style="background:var(--prog);transform:scaleX(${v})"></div>` : '';
+      h += `<div class="hc" title="${r.label} · ${col.label}">${fill}${label}</div>`;
     });
   });
   heatEl.innerHTML = h;
